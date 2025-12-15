@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom"; // 👈 1. NEW: Import useNavigate
-import axios from "axios";
+// import axios from "axios";
 import Sidebar from "../components/Sidebar";
 import Card from "../components/ProductCard";
 import Products from "./dashboard/Products";
@@ -9,6 +9,8 @@ import Orders from "./dashboard/Orders";
 import Settings from "./dashboard/Settings";
 import { getProducts } from "../api/productsApi";
 import API_URL from "../config/api";
+import api from "../api/axios";
+
 
 // 🚨 NEW COMPONENT: Logout Confirmation Modal/Card
 const LogoutConfirmationModal = ({ onConfirm, onCancel }) => {
@@ -76,20 +78,17 @@ export default function Dashboard() {
     // ----------------------------------------------------------------------
 
 
-  useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const res = await axios.get(`${API_URL}/api/orders`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setOrders(res.data);
-      } catch (err) {
-        console.error("Failed to fetch orders:", err);
-      }
-    };
-    fetchOrders();
-  }, []);
+      useEffect(() => {
+        const fetchOrders = async () => {
+          try {
+            const res = await api.get("/orders");
+            setOrders(res.data);
+          } catch (err) {
+            console.error("Failed to fetch orders:", err);
+          }
+        };
+        fetchOrders();
+      }, []);
 
   useEffect(() => {
     const fetchProductsCount = async () => {
