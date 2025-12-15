@@ -1,14 +1,14 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: `${BACKEND_URL}/api`,
+  baseURL: `${import.meta.env.VITE_API_URL}/api`,
 });
 
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
 
-    // ✅ Only attach token if the request is NOT POST /orders
+    // attach token except for POST /orders
     if (token && !(config.method === "post" && config.url === "/orders")) {
       config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
