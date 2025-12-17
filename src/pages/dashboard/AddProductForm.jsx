@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { uploadImagesBatch } from "../../api/productsApi";
 import API_URL from "../../config/api";
-const [isSubmitting, setIsSubmitting] = useState(false);
 
 
 const BACKEND_URL = API_URL;
@@ -13,6 +12,7 @@ const fileInputClasses = "w-full p-3 border-2 border-dashed border-indigo-300 ro
 
 
 export default function AddProductForm({ categories = [], product, onAdd, onClose }) {
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [name, setName] = useState("");
     const [price, setPrice] = useState("");
     const [previousPrice, setPreviousPrice] = useState(0);
