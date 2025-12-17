@@ -11,6 +11,7 @@ const fileInputClasses = "w-full p-3 border-2 border-dashed border-indigo-300 ro
 
 
 export default function AddProductForm({ categories = [], product, onAdd, onClose }) {
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [name, setName] = useState("");
     const [price, setPrice] = useState("");
     const [previousPrice, setPreviousPrice] = useState(0);
@@ -94,85 +95,97 @@ export default function AddProductForm({ categories = [], product, onAdd, onClos
         setImages(prev => prev.map((img, i) => ({ ...img, isPrimary: i === idx })));
     };
 
-    const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // 🛑 BLOCK double submit
+    if (isSubmitting) return;
+
     if (!name || !price) return;
 
-    const formData = new FormData();
-    formData.append("name", name);
-    formData.append("price", price);
-    formData.append("previousPrice", onPromotion ? previousPrice : 0);
-    formData.append("category", category);
-    formData.append("description", description);
-    formData.append("isAvailable", isAvailable.toString());
-    formData.append("onPromotion", onPromotion.toString());
-
-    // 1. Sort the local state array. The item with isPrimary: true is now at index 0.
-    const reorderedImages = [...images].sort((a, b) => b.isPrimary - a.isPrimary);
-
-    // 2. Separate files for upload and existing image paths.
-    const newFiles = reorderedImages.filter(img => img.file).map(img => img.file);
-    
-    // CRITICAL: Create a map of existing full URLs to their relative paths.
-    const existingUrlToRelativePathMap = new Map(
-        reorderedImages
-            .filter(img => img.isExisting)
-            .map(img => [img.url, img.url.replace(BACKEND_URL, "")])
-    );
-
-    // 3. Upload new files. uploadedUrls is an array of new relative paths.
-    let uploadedUrls = [];
-    if (newFiles.length > 0) uploadedUrls = await uploadImagesBatch(newFiles);
-    
-    // 4. Create a map of new file objects to their uploaded relative path.
-    // We rely on uploadImagesBatch returning paths in the same order as newFiles.
-    const newFileToRelativePathMap = new Map(
-        newFiles.map((file, index) => [file, uploadedUrls[index]])
-    );
-
-    // --- FINAL FIX: Build the master array of relative paths based on the sorted list ---
-    const allImages = reorderedImages
-        .map(img => {
-            if (img.isExisting) {
-                // Get the relative path for an existing image
-                return existingUrlToRelativePathMap.get(img.url);
-            } else if (img.file) {
-                // Get the relative path for a newly uploaded image
-                return newFileToRelativePathMap.get(img.file);
-            }
-            return null; // Should not happen
-        })
-        .filter(path => path); // Filter out any null/undefined paths
-
-    // This array now GUARANTEES the primary image path (new or existing) is at index 0,
-    // because it was the first element in reorderedImages.
-    formData.append("existingImages", JSON.stringify(allImages));
+    setIsSubmitting(true); // 🔒 LOCK FORM
 
     try {
-        // Pass the data to the parent component
-        await onAdd(formData, allImages.map((url, i) => ({
-            url: url.startsWith("http") ? url : BACKEND_URL + url,
-            isPrimary: i === 0,
-        })));
-    } catch (err) {
-        console.error("Error in onAdd:", err);
-    }
+        const formData = new FormData();
+        formData.append("name", name);
+        formData.append("price", price);
+        formData.append("previousPrice", onPromotion ? previousPrice : 0);
+        formData.append("category", category);
+        formData.append("description", description);
+        formData.append("isAvailable", isAvailable.toString());
+        formData.append("onPromotion", onPromotion.toString());
 
-        // Reset form
-        setName("");
-        setPrice("");
-        setPreviousPrice(0);
-        setDescription("");
-        setCategory(categories[0]?.name || "");
-        setImages([]);
-        setIsAvailable(true);
-        setOnPromotion(false);
-    };
+        const reorderedImages = [...images].sort((a, b) => b.isPrimary - a.isPrimary);
+
+        const newFiles = reorderedImages.filter(img => img.file).map(img => img.file);
+
+        const existingUrlToRelativePathMap = new Map(
+            reorderedImages
+                .filter(img => img.isExisting)
+                .map(img => [img.url, img.url.replace(BACKEND_URL, "")])
+        );
+
+        let uploadedUrls = [];
+        if (newFiles.length > 0) {
+            uploadedUrls = await uploadImagesBatch(newFiles);
+        }
+
+        const newFileToRelativePathMap = new Map(
+            newFiles.map((file, index) => [file, uploadedUrls[index]])
+        );
+
+        const allImages = reorderedImages
+            .map(img => {
+                if (img.isExisting) return existingUrlToRelativePathMap.get(img.url);
+                if (img.file) return newFileToRelativePathMap.get(img.file);
+                return null;
+            })
+            .filter(Boolean);
+
+        formData.append("existingImages", JSON.stringify(allImages));
+
+        await onAdd(
+            formData,
+            allImages.map((url, i) => ({
+                url: url.startsWith("http") ? url : BACKEND_URL + url,
+                isPrimary: i === 0,
+            }))
+        );
+
+        // ✅ Reset form ONLY after success
+        setName("");
+        setPrice("");
+        setPreviousPrice(0);
+        setDescription("");
+        setCategory(categories[0]?.name || "");
+        setImages([]);
+        setIsAvailable(true);
+        setOnPromotion(false);
+
+    } catch (err) {
+        console.error("Create product failed:", err);
+        alert("Failed to create product. Try again.");
+    } finally {
+        setIsSubmitting(false); // 🔓 UNLOCK FORM
+    }
+};
+
 
     return (
         <div className="fixed inset-0 flex items-center justify-center z-50 px-4 bg-black/60 backdrop-blur-sm">
             <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto flex flex-col gap-5 p-6 md:p-8 relative">
-                <button type="button" onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-red-600 text-2xl font-bold transition">✕</button>
+<button
+    type="submit"
+    disabled={isSubmitting}
+    className={`px-4 py-3 rounded-xl font-extrabold mt-4 shadow-xl transition 
+    ${
+        isSubmitting
+            ? "bg-gray-400 cursor-not-allowed"
+            : "bg-indigo-600 hover:bg-indigo-700 hover:scale-[1.01] text-white"
+    }`}
+>
+    {isSubmitting ? "Creating Product..." : product ? "Save Changes" : "Create Product"}
+</button>
                 <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900 border-b pb-3 mb-2">
                     {product ? "Edit Product" : "Add New Product"}
                 </h2>
@@ -254,3 +267,4 @@ export default function AddProductForm({ categories = [], product, onAdd, onClos
         </div>
     );
 }
+
