@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { uploadImagesBatch } from "../../api/productsApi";
 import API_URL from "../../config/api";
+const [isSubmitting, setIsSubmitting] = useState(false);
+
 
 const BACKEND_URL = API_URL;
 
@@ -11,7 +13,6 @@ const fileInputClasses = "w-full p-3 border-2 border-dashed border-indigo-300 ro
 
 
 export default function AddProductForm({ categories = [], product, onAdd, onClose }) {
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const [name, setName] = useState("");
     const [price, setPrice] = useState("");
     const [previousPrice, setPreviousPrice] = useState(0);
@@ -174,18 +175,7 @@ const handleSubmit = async (e) => {
     return (
         <div className="fixed inset-0 flex items-center justify-center z-50 px-4 bg-black/60 backdrop-blur-sm">
             <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto flex flex-col gap-5 p-6 md:p-8 relative">
-<button
-    type="submit"
-    disabled={isSubmitting}
-    className={`px-4 py-3 rounded-xl font-extrabold mt-4 shadow-xl transition 
-    ${
-        isSubmitting
-            ? "bg-gray-400 cursor-not-allowed"
-            : "bg-indigo-600 hover:bg-indigo-700 hover:scale-[1.01] text-white"
-    }`}
->
-    {isSubmitting ? "Creating Product..." : product ? "Save Changes" : "Create Product"}
-</button>
+                <button type="button" onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-red-600 text-2xl font-bold transition">✕</button>
                 <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900 border-b pb-3 mb-2">
                     {product ? "Edit Product" : "Add New Product"}
                 </h2>
@@ -260,11 +250,21 @@ const handleSubmit = async (e) => {
                     )}
                 </div>
 
-                <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-xl font-extrabold mt-4 shadow-xl transition transform hover:scale-[1.01]">
-                    {product ? "Save Changes" : "Create Product"}
-                </button>
+                <button
+    type="submit"
+    disabled={isSubmitting}
+    className={`px-4 py-3 rounded-xl font-extrabold mt-4 shadow-xl transition 
+    ${
+        isSubmitting
+            ? "bg-gray-400 cursor-not-allowed"
+            : "bg-indigo-600 hover:bg-indigo-700 hover:scale-[1.01] text-white"
+    }`}
+>
+    {isSubmitting ? "Creating Product..." : product ? "Save Changes" : "Create Product"}
+</button>
             </form>
         </div>
     );
 }
+
 
