@@ -36,9 +36,8 @@ export default function Checkout() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [focusedInput, setFocusedInput] = useState("");
-  const [isNavigating, setIsNavigating] = useState(false); // Track navigation state
+  const [isNavigating, setIsNavigating] = useState(false); 
   
-  // Validation error states for each field
   const [fieldErrors, setFieldErrors] = useState({
     customerName: false,
     customerEmail: false,
@@ -47,7 +46,6 @@ export default function Checkout() {
     customerAddress: false
   });
 
-  // Redirect to cart if cart is empty and not navigating
   useEffect(() => {
     if (!cartItems || cartItems.length === 0) {
       if (!isNavigating) {
@@ -61,7 +59,6 @@ export default function Checkout() {
     setCheckoutInfo((prev) => ({ ...prev, [name]: value }));
     setError("");
     
-    // Reset field error when user starts typing
     if (fieldErrors[name]) {
       setFieldErrors(prev => ({ ...prev, [name]: false }));
     }
@@ -70,10 +67,9 @@ export default function Checkout() {
   const validateInputs = () => {
     const nameRegex = /^[a-zA-Z\s]+$/;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    // Updated phone regex to allow + and - at beginning and numbers only after
     const phoneRegex = /^[\+]?[0-9][0-9\s\-]{7,15}$/;
     const cityRegex = /^[a-zA-Z\s]+$/;
-    const addressRegex = /^[a-zA-Z0-9\s]+$/;
+    const addressRegex = /^[a-zA-Z0-9\s,.-]+$/; // Slightly relaxed for common address chars
     
     const newFieldErrors = {
       customerName: !checkoutInfo.customerName.trim() || !nameRegex.test(checkoutInfo.customerName),
@@ -101,7 +97,7 @@ export default function Checkout() {
       return;
     }
 
-    setIsSubmitting(true); // START SUBMITTING
+    setIsSubmitting(true);
 
     try {
       const payload = {
@@ -136,16 +132,13 @@ export default function Checkout() {
       console.error(err);
       setError("Failed to create order. Please try again.");
       setIsNavigating(false);
-      setIsSubmitting(false); // ALLOW RETRY ON ERROR
+      setIsSubmitting(false); 
     }
-    // Note: We don't set isSubmitting(false) in 'finally' if success is true 
-    // because we want the button to stay disabled during navigation.
 };
 
-  // If cart is empty and not navigating, show loading while redirecting
   if (!cartItems || cartItems.length === 0) {
     if (isNavigating) {
-      return null; // Don't render anything while navigating
+      return null; 
     }
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
@@ -250,12 +243,11 @@ export default function Checkout() {
                     type="text"
                     name="customerName"
                     value={checkoutInfo.customerName}
-                    onChange={(e) =>
-                      setCheckoutInfo((prev) => ({
-                        ...prev,
-                        customerName: e.target.value.replace(/[^a-zA-Z\s]/g, ""),
-                      }))
-                    }
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^a-zA-Z\s]/g, "");
+                      setCheckoutInfo(prev => ({ ...prev, customerName: val }));
+                      if (fieldErrors.customerName) setFieldErrors(p => ({...p, customerName: false}));
+                    }}
                     onFocus={() => setFocusedInput('customerName')}
                     onBlur={() => setFocusedInput('')}
                     className={`w-full p-3 pl-10 border rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 transition ${focusedInput === 'customerName' || checkoutInfo.customerName ? 'pt-5' : ''} ${fieldErrors.customerName ? 'border-red-500' : ''}`}
@@ -291,13 +283,11 @@ export default function Checkout() {
                     type="tel"
                     name="customerPhone"
                     value={checkoutInfo.customerPhone}
-                    onChange={(e) =>
-                      setCheckoutInfo((prev) => ({
-                        ...prev,
-                        // Allow + at beginning and numbers, spaces, hyphens after
-                        customerPhone: e.target.value.replace(/[^+0-9\s\-]/g, ""),
-                      }))
-                    }
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^+0-9\s\-]/g, "");
+                      setCheckoutInfo(prev => ({ ...prev, customerPhone: val }));
+                      if (fieldErrors.customerPhone) setFieldErrors(p => ({...p, customerPhone: false}));
+                    }}
                     onFocus={() => setFocusedInput('customerPhone')}
                     onBlur={() => setFocusedInput('')}
                     className={`w-full p-3 pl-10 border rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 transition ${focusedInput === 'customerPhone' || checkoutInfo.customerPhone ? 'pt-5' : ''} ${fieldErrors.customerPhone ? 'border-red-500' : ''}`}
@@ -316,12 +306,11 @@ export default function Checkout() {
                     type="text"
                     name="city"
                     value={checkoutInfo.city}
-                    onChange={(e) =>
-                      setCheckoutInfo((prev) => ({
-                        ...prev,
-                        city: e.target.value.replace(/[^a-zA-Z\s]/g, ""),
-                      }))
-                    }
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^a-zA-Z\s]/g, "");
+                      setCheckoutInfo(prev => ({ ...prev, city: val }));
+                      if (fieldErrors.city) setFieldErrors(p => ({...p, city: false}));
+                    }}
                     onFocus={() => setFocusedInput('city')}
                     onBlur={() => setFocusedInput('')}
                     className={`w-full p-3 pl-10 border rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 transition ${focusedInput === 'city' || checkoutInfo.city ? 'pt-5' : ''} ${fieldErrors.city ? 'border-red-500' : ''}`}
@@ -340,19 +329,17 @@ export default function Checkout() {
                   type="text"
                   name="customerAddress"
                   value={checkoutInfo.customerAddress}
-                  onChange={(e) =>
-                    setCheckoutInfo((prev) => ({
-                      ...prev,
-                      customerAddress: e.target.value.replace(/[^a-zA-Z0-9\s]/g, ""),
-                    }))
-                  }
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^a-zA-Z0-9\s,.-]/g, "");
+                    setCheckoutInfo(prev => ({ ...prev, customerAddress: val }));
+                    if (fieldErrors.customerAddress) setFieldErrors(p => ({...p, customerAddress: false}));
+                  }}
                   onFocus={() => setFocusedInput('customerAddress')}
                   onBlur={() => setFocusedInput('')}
                   className={`w-full p-3 pl-10 border rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 transition ${focusedInput === 'customerAddress' || checkoutInfo.customerAddress ? 'pt-5' : ''} ${fieldErrors.customerAddress ? 'border-red-500' : ''}`}
                 />
               </div>
 
-              {/* PAYMENT METHOD SELECT */}
               <div className="mb-6">
                 <label className="block text-gray-700 font-semibold mb-3 flex items-center">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -376,7 +363,6 @@ export default function Checkout() {
                     </div>
                   </div>
                   
-                  {/* Future payment methods can be added here */}
                   <div className="border-2 border-gray-200 rounded-xl p-4 opacity-50 cursor-not-allowed">
                     <div className="flex items-center">
                       <div className="w-5 h-5 rounded-full border-2 mr-3 border-gray-400"></div>
@@ -390,32 +376,32 @@ export default function Checkout() {
               </div>
 
               <button
-  onClick={handleCheckout}
-  disabled={isSubmitting}
-  className={`w-full py-4 rounded-xl text-lg font-extrabold shadow-xl transition flex items-center justify-center
-  ${
-    isSubmitting
-      ? "bg-gray-400 cursor-not-allowed text-white"
-      : "bg-indigo-600 hover:bg-indigo-700 hover:scale-[1.01] text-white"
-  }`}
->
-  {isSubmitting ? (
-    <>
-      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-      </svg>
-      Placing Order...
-    </>
-  ) : (
-    <>
-      Place Order
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
-        <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-      </svg>
-    </>
-  )}
-</button>
+                onClick={handleCheckout}
+                disabled={isSubmitting}
+                className={`w-full py-4 rounded-xl text-lg font-extrabold shadow-xl transition flex items-center justify-center
+                ${
+                  isSubmitting
+                    ? "bg-gray-400 cursor-not-allowed text-white"
+                    : "bg-indigo-600 hover:bg-indigo-700 hover:scale-[1.01] text-white"
+                }`}
+              >
+                {isSubmitting ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Placing Order...
+                  </>
+                ) : (
+                  <>
+                    Place Order
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </>
+                )}
+              </button>
               
               <div className="mt-4 flex items-center justify-center text-sm text-gray-500">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
