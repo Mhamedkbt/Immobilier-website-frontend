@@ -1,10 +1,11 @@
-import React from "react";
-import { Navigate } from "react-router-dom";
-
-export default function ProtectedRoute({ children }) {
-  const token = localStorage.getItem("token");
-  if (!token) {
-    return <Navigate to="/login" replace />;
+// Add this to your axios api instance response interceptor
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem("token");
+      window.location.href = "/login"; // Force total redirect
+    }
+    return Promise.reject(error);
   }
-  return children;
-}
+);
