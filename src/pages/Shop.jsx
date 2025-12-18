@@ -88,21 +88,20 @@ export default function ProductListing() {
 
     // --- Data Fetching ---
     useEffect(() => {
-                async function loadData() {
-                    setLoading(true);
-                    setError(null);
-                    try {
-                        const [productResponse, categoryResponse] = await Promise.all([
-                            getProducts(), 
-                            getCategories()
-                        ]);
+                async function loadData() {
+                    setError(null);
+                    try {
+                        const [productResponse, categoryResponse] = await Promise.all([
+                            getProducts(), 
+                            getCategories()
+                        ]);
         
-                        // Process all products from the API
-                        const processedProducts = productResponse.data.map(processProductData);
-                        setProducts(processedProducts);
+                        // Process all products from the API
+                        const processedProducts = productResponse.data.map(processProductData);
+                        setProducts(processedProducts);
         
-                        // ✅ FIX: ONLY set the categories state with the full objects. 
-                        setCategories(categoryResponse.data);
+                        // ✅ FIX: ONLY set the categories state with the full objects. 
+                        setCategories(categoryResponse.data);
 
             } catch (err) {
                 console.error("Failed to fetch shop data:", err);
@@ -135,7 +134,7 @@ export default function ProductListing() {
             setSelectedCategory('All'); 
         }
 
-    }, [initialCategoryId, categories]); // <<< Update dependencies
+    }, [initialCategoryId, categories]); // <<< Update dependencies
 
     
     // --- Filtering, Sorting, and Searching Logic (The core logic) ---
@@ -184,17 +183,7 @@ export default function ProductListing() {
 
     const resultCount = filteredAndSortedProducts.length;
 
-    // --- Loading and Error UI ---
-    if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-700 mb-4 mx-auto"></div>
-                    <p className="text-gray-600 font-medium tracking-wide">Loading...</p>
-                </div>
-            </div>
-        );
-    }
+    // --- Error UI ---
     if (error) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-100 p-8">
@@ -240,19 +229,19 @@ export default function ProductListing() {
                         <div className="space-y-6 text-gray-700">
                             
                             {/* Category Filter */}
-                                                        <div>
-                                <h3 className="text-base font-medium mb-2">Category</h3>
-                                <select 
-                                    value={selectedCategory}
-                                    onChange={e => setSelectedCategory(e.target.value)}
-                                    className="w-full border border-gray-300 rounded-lg p-2.5 text-sm cursor-pointer focus:ring-indigo-500 focus:border-indigo-500"
-                                >
-                                    <option value="All">All</option> {/* Manually add the All option */}
-                                    {categories.map(cat => (
-                                        <option key={cat.id} value={cat.name}>{cat.name}</option> // <<< Changed map function
-                                    ))}
-                                </select>
-                            </div>
+                                                        <div>
+                                <h3 className="text-base font-medium mb-2">Category</h3>
+                                <select 
+                                    value={selectedCategory}
+                                    onChange={e => setSelectedCategory(e.target.value)}
+                                    className="w-full border border-gray-300 rounded-lg p-2.5 text-sm cursor-pointer focus:ring-indigo-500 focus:border-indigo-500"
+                                >
+                                    <option value="All">All</option> {/* Manually add the All option */}
+                                    {categories.map(cat => (
+                                        <option key={cat.id} value={cat.name}>{cat.name}</option> // <<< Changed map function
+                                    ))}
+                                </select>
+                            </div>
 
                             {/* Availability Filter (Toggle) - UNCOMMENTED */}
                             <div className="flex items-center justify-between pt-2 border-t border-gray-100">
