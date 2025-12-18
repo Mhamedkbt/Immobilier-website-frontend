@@ -247,17 +247,17 @@ export default function Products() {
                 </h1>
                 
                 {/* Search, Filter, and Add Button Container (Responsive Grid/Flex) */}
-                <div className="flex flex-col sm:grid sm:grid-cols-3 lg:flex lg:flex-row lg:w-auto gap-3 w-full items-center">
-                    {/* Search Input */}
-                    <input
-                        type="search"
-                        placeholder="Search products..."
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                        // Takes full width on mobile, 2/3 on small screens, auto on large
-                        className="border-2 border-gray-200 px-4 py-2 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 w-full sm:col-span-2 transition"
-                        aria-label="Search products"
-                    />
+<div className="flex flex-col sm:grid sm:grid-cols-3 lg:flex lg:flex-row lg:w-auto gap-3 w-full items-center">
+    {/* Search Input */}
+    <input
+        type="search"
+        placeholder="Search products..."
+        value={searchQuery}
+        onChange={e => setSearchQuery(e.target.value)}
+        // Added text-gray-900, placeholder-gray-500, and bg-white for mobile visibility
+        className="border-2 border-gray-200 px-4 py-2 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 w-full sm:col-span-2 transition text-gray-900 placeholder-gray-500 bg-white"
+        aria-label="Search products"
+    />
                     
                     {/* Category Filter */}
                     <select
