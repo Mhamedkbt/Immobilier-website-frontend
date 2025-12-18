@@ -219,13 +219,14 @@ export default function ProductListing() {
                         All Products
                     </h1>
                     <input
-                        type="search"
-                        placeholder="Search products by name..." // Updated placeholder
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                        className="w-full max-w-2xl border border-gray-300 px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
-                        aria-label="Search products"
-                    />
+    type="search"
+    placeholder="Search products by name..." // Updated placeholder
+    value={searchTerm}
+    onChange={e => setSearchTerm(e.target.value)}
+    // Added text-gray-900, placeholder-gray-500, and bg-white for visibility
+    className="w-full max-w-2xl border border-gray-300 px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition text-gray-900 placeholder-gray-500 bg-white"
+    aria-label="Search products"
+/>
                 </header>
 
                 {/* --- Product Filters & Results Section --- */}
