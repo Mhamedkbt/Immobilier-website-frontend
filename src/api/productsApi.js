@@ -8,18 +8,17 @@ export const getProducts = () => api.get("/products");
 export const fetchCategories = () => api.get("/categories"); 
 
 export const addProduct = (productData) => {
-  const token = getToken();
-  return api.post(`/products?token=${token}`, productData, {
+  return api.post("/products", productData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
 };
 
 export const updateProduct = (id, formData) => {
-  const token = getToken();
-  return api.put(`/products/${id}?token=${token}`, formData, {
+  return api.put(`/products/${id}`, formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
 };
+
 
 export const deleteProduct = (id) => api.delete(`/products/${id}`);
 
