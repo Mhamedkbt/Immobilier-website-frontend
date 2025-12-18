@@ -106,32 +106,34 @@ export default function Orders() {
     onChange={(e) => setSearchName(e.target.value)}
     // Added text-gray-900, placeholder-gray-500, and bg-white
     className="border-2 border-gray-200 px-4 py-2.5 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 shadow-sm w-full transition text-gray-900 placeholder-gray-500 bg-white"
-/>
+                    />
                     </div>
 
                     <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="border-2 border-gray-200 px-4 py-2.5 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 shadow-sm w-full transition cursor-pointer appearance-none"
-                    >
-                        <option value="">All Status</option>
-                        {Object.keys(statusColors).map((status) => (
-                            <option key={status} value={status}>
-                                {status}
-                            </option>
-                        ))}
-                    </select>
+        value={statusFilter}
+        onChange={(e) => setStatusFilter(e.target.value)}
+        // Removed 'appearance-none' to show the arrow, added 'bg-white' and 'text-gray-900'
+        className="border-2 border-gray-200 px-4 pr-10 py-2.5 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 shadow-sm w-full transition cursor-pointer text-gray-900 bg-white"
+    >
+        <option value="">All Status</option>
+        {Object.keys(statusColors).map((status) => (
+            <option key={status} value={status}>
+                {status}
+            </option>
+        ))}
+    </select>
 
-                    <select
-                        value={sortRange}
-                        onChange={(e) => setSortRange(e.target.value)}
-                        className="border-2 border-gray-200 px-4 py-2.5 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 shadow-sm w-full transition cursor-pointer appearance-none"
-                    >
-                        <option value="all">All time</option>
-                        <option value="day">Last 24h</option>
-                        <option value="week">Last 7 days</option>
-                        <option value="month">Last 30 days</option>
-                    </select>
+    <select
+        value={sortRange}
+        onChange={(e) => setSortRange(e.target.value)}
+        // Removed 'appearance-none' to show the arrow, added 'bg-white' and 'text-gray-900'
+        className="border-2 border-gray-200 px-4 pr-10 py-2.5 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 shadow-sm w-full transition cursor-pointer text-gray-900 bg-white"
+    >
+        <option value="all">All time</option>
+        <option value="day">Last 24h</option>
+        <option value="week">Last 7 days</option>
+        <option value="month">Last 30 days</option>
+    </select>
                 </div>
             </div>
             
