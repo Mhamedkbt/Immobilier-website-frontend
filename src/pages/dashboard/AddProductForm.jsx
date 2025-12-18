@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { uploadImagesBatch } from "../../api/productsApi";
 import API_URL from "../../config/api";
 
 
@@ -118,32 +117,19 @@ const handleSubmit = async (e) => {
 
         const reorderedImages = [...images].sort((a, b) => b.isPrimary - a.isPrimary);
 
-        const newFiles = reorderedImages.filter(img => img.file).map(img => img.file);
+// ✅ send existing URLs
+const existingImages = reorderedImages
+    .filter(img => img.isExisting)
+    .map(img => img.url);
 
-        const existingUrlToRelativePathMap = new Map(
-            reorderedImages
-                .filter(img => img.isExisting)
-                .map(img => [img.url, img.url.replace(BACKEND_URL, "")])
-        );
+formData.append("existingImages", JSON.stringify(existingImages));
 
-        let uploadedUrls = [];
-        if (newFiles.length > 0) {
-            uploadedUrls = await uploadImagesBatch(newFiles);
-        }
-
-        const newFileToRelativePathMap = new Map(
-            newFiles.map((file, index) => [file, uploadedUrls[index]])
-        );
-
-        const allImages = reorderedImages
-            .map(img => {
-                if (img.isExisting) return existingUrlToRelativePathMap.get(img.url);
-                if (img.file) return newFileToRelativePathMap.get(img.file);
-                return null;
-            })
-            .filter(Boolean);
-
-        formData.append("existingImages", JSON.stringify(allImages));
+// ✅ send NEW files directly
+reorderedImages
+    .filter(img => img.file)
+    .forEach(img => {
+        formData.append("images", img.file);
+    });
 
         await onAdd(
             formData,
