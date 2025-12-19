@@ -92,77 +92,70 @@ export default function Categories({ refreshKey }) {
     // ----------------------------------------------------
     
     // Add category
-    const addCategory = async () => {
-        if (isAdding) return; // 🚨 HARD BLOCK
-        if (!categoryInput.trim()) return;
-        if (!newImageFile) {
-            alert("Please select a category image before adding.");
-            return;
-        }
-    
-        setIsAdding(true); // 🔒 lock
-    
-        try {
-            const res = await addCategoryApi(
-                categoryInput.trim(),
-                newImageFile
-            );
-    
-            const newCategory = {
-                ...res.data,
-                imageUrl: normalizeImagePath(res.data.image)
-            };
-    
-            setCategories(prev => [...prev, newCategory]);
-            setCategoryInput("");
-            setNewImageFile(null);
-    
-        } catch (err) {
-            console.error("Failed to add category:", err);
-            alert("Failed to add category.");
-        } finally {
-            setIsAdding(false); // 🔓 unlock
-        }
-    };    
+    // ... (keep your existing uploadToCloudinary function here)
 
-    // Save edited category
-    const saveEdit = async () => {
-        if (!editingValue.trim()) return;
-        
-        // Find the current category to check for existing image
-        const currentCategory = categories.find(c => c.id === editingId);
-        
-        // Prevent update if user removes image from a category that never had one
-        // and doesn't provide a new one. (Simplified check: if no existing URL AND no new file)
-        if (!currentCategory?.imageUrl && !editingImageFile) {
-             alert("The category must have an image. Please upload one.");
-             return;
+// Add category
+const addCategory = async () => {
+    if (isAdding) return;
+    if (!categoryInput.trim() || !newImageFile) {
+        alert("Please provide a name and an image.");
+        return;
+    }
+
+    setIsAdding(true);
+    try {
+        // 1. Upload to Cloudinary first
+        const imageUrl = await uploadToCloudinary(newImageFile);
+
+        // 2. Send JSON to Spring Boot
+        const payload = {
+            name: categoryInput.trim(),
+            image: imageUrl // Just the URL string
+        };
+
+        const res = await addCategoryApi(payload);
+
+        setCategories(prev => [...prev, res.data]);
+        setCategoryInput("");
+        setNewImageFile(null);
+
+    } catch (err) {
+        console.error("Failed to add category:", err);
+        alert("Error uploading category image.");
+    } finally {
+        setIsAdding(false);
+    }
+};
+
+// Save edited category
+const saveEdit = async () => {
+    if (!editingValue.trim()) return;
+
+    try {
+        let finalImageUrl = categories.find(c => c.id === editingId).image;
+
+        // If user selected a NEW file, upload it. Otherwise, keep the old URL.
+        if (editingImageFile) {
+            finalImageUrl = await uploadToCloudinary(editingImageFile);
         }
 
-        try {
-            const trimmedValue = editingValue.trim();
-            
-            // 🎯 CHANGE: Call API with ID, name, and the new file object (can be null)
-            await updateCategoryApi(
-                editingId, 
-                trimmedValue, 
-                editingImageFile // Pass null if no new file selected
-            );
-            
-            // 🚨 SAFEGUARD: Full re-fetch is necessary here to get the new 'imageUrl' 
-            // if an image was updated and saveEdit doesn't return the new URL.
-            await fetchCategories(); 
-            await fetchProducts(); 
-            
-            setEditingId(null);
-            setEditingValue("");
-            setEditingImageFile(null); // Clear editing file state
-            
-        } catch (err) {
-            console.error("Failed to update category:", err.response?.data || err.message);
-            alert("Failed to update category. Check console for details.");
-        }
-    };
+        const payload = {
+            name: editingValue.trim(),
+            image: finalImageUrl
+        };
+
+        await updateCategoryApi(editingId, payload);
+        
+        // Refresh local state
+        await fetchCategories();
+        setEditingId(null);
+        setEditingImageFile(null);
+        
+    } catch (err) {
+        console.error("Failed to update:", err);
+        alert("Update failed.");
+    }
+};
 
     // Delete category (unchanged logic)
     const handleDelete = async () => {
