@@ -97,15 +97,12 @@ export default function AddProductForm({ categories = [], product, onAdd, onClos
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        // Basic validation
         if (isSubmitting || !name || !price) return;
     
         setIsSubmitting(true);
     
         try {
             const formData = new FormData();
-            
-            // Append standard text fields
             formData.append("name", name);
             formData.append("price", price);
             formData.append("previousPrice", onPromotion ? previousPrice : 0);
@@ -114,44 +111,37 @@ export default function AddProductForm({ categories = [], product, onAdd, onClos
             formData.append("isAvailable", isAvailable.toString());
             formData.append("onPromotion", onPromotion.toString());
     
-            // Sort images so that the Primary image is always at index 0
+            // Sort: Primary first
             const reorderedImages = [...images].sort((a, b) => b.isPrimary - a.isPrimary);
     
-            // 1. Collect URLs of images that are already on Cloudinary
+            // Filter and clean existing URLs
             const existingUrls = reorderedImages
                 .filter(img => img.isExisting)
                 .map(img => img.url);
             
-            // Append existing images as a JSON string
+            // Always send a stringified array, even if empty
             formData.append("existingImages", JSON.stringify(existingUrls));
     
-            // 2. Collect new file objects and append them to the "images" key
-            // This MUST match the @RequestParam("images") in your Spring Boot Controller
-            const newFiles = reorderedImages.filter(img => img.file);
-            
+            // Append new files
+            const newFiles = reorderedImages.filter(img => img.file && !img.isExisting);
             newFiles.forEach(img => {
                 formData.append("images", img.file);
             });
     
-            // Prepare the preview list for the UI state update (Frontend only)
-            const imagePreviewsForParent = reorderedImages.map(img => ({ url: img.url }));
-    
-            // Send the request via the onAdd prop (which calls your addProduct/updateProduct API)
-            await onAdd(formData, imagePreviewsForParent);
+            // Pass to parent
+            const previews = reorderedImages.map(img => ({ url: img.url }));
+            await onAdd(formData, previews);
     
             if (!product) {
-                // Clear form state only for a new product creation
                 setName("");
                 setPrice("");
                 setImages([]);
-                setDescription("");
             }
-            
             onClose();
     
         } catch (err) {
-            console.error("Submission failed:", err);
-            alert("Error saving product. Check the network tab in your browser console.");
+            console.error("Full Error Object:", err);
+            alert(`Failed: ${err.response?.data?.message || err.message}`);
         } finally {
             setIsSubmitting(false);
         }
