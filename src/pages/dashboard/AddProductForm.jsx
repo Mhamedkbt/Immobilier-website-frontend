@@ -116,11 +116,16 @@ export default function AddProductForm({ categories = [], product, onAdd, onClos
     
             // 2. Fix the Existing URLs logic
             // We only want the path part if it's already a full URL pointing to our backend
+            // But we keep the full URL if it's from Cloudinary (starts with http)
             const existingUrls = reorderedImages
                 .filter(img => img.isExisting)
                 .map(img => {
-                    // If it contains our BACKEND_URL, remove it to send only the relative path
-                    return img.url.replace(BACKEND_URL, "");
+                    // If it contains our BACKEND_URL (local storage), remove it
+                    if (img.url.includes(BACKEND_URL)) {
+                        return img.url.replace(BACKEND_URL, "");
+                    }
+                    // If it's a Cloudinary URL (https://res.cloudinary.com...), keep it as is
+                    return img.url;
                 });
             
             formData.append("existingImages", JSON.stringify(existingUrls));
