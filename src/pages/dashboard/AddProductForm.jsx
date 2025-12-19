@@ -120,8 +120,9 @@ export default function AddProductForm({ categories = [], product, onAdd, onClos
                 .map(img => img.url);
             
             // Always send a stringified array, even if empty
-            formData.append("existingImages", JSON.stringify(existingUrls));
-    
+            const cleanExisting = JSON.stringify(existingUrls || []);
+            formData.append("existingImages", cleanExisting);
+
             // Append new files
             const newFiles = reorderedImages.filter(img => img.file && !img.isExisting);
             newFiles.forEach(img => {
