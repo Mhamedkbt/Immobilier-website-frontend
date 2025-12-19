@@ -179,37 +179,31 @@ export default function Products() {
     const handleAddOrEdit = async (productData, newImagesPreview = []) => {
         try {
             let res;
-            
             if (editProduct) {
-                // Update existing product
                 res = await updateProduct(editProduct.id, productData);
             } else {
-                // Add new product
                 res = await addProduct(productData);
             }
-
-            // Process the received product data
+    
+            // res.data is the fresh product from the DB
             const processedProduct = processProductData(res.data);
-
-            if (editProduct) {
-                // Update product in state
-                setProducts(products.map(p => (p.id === processedProduct.id ? processedProduct : p)));
-            } else {
-                // Add new product to state (using local image preview for quick UX if available)
-                const imagesForState = newImagesPreview.length > 0 
-                    ? newImagesPreview.map(i => i.url) // Use local preview URLs
-                    : processedProduct.images;        // Use actual processed URLs
-
-                setProducts(prev => [{ ...processedProduct, images: imagesForState }, ...prev]);
-            }
-
+    
+            setProducts(prev => {
+                if (editProduct) {
+                    // Update: Replace old product with new one
+                    return prev.map(p => (p.id === processedProduct.id ? processedProduct : p));
+                } else {
+                    // Add: Put new product at the top
+                    return [processedProduct, ...prev];
+                }
+            });
+    
             handleCloseForm();
-            // Fetch again (optional, good for ensuring consistency if image upload is async)
-            // await fetchProducts();
-
         } catch (err) {
-            console.error("Failed to add/update product:", err.response?.data || err.message);
-            alert(`Operation failed: ${err.response?.data?.message || err.message}. Check console for details.`);
+            console.error("API ERROR:", err.response?.data || err.message);
+            // This will now show the REAL error message from the server
+            const msg = err.response?.data?.message || err.message;
+            alert(`Server Error: ${msg}`);
         }
     };
 
