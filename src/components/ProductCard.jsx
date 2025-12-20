@@ -104,7 +104,7 @@ const ProductCard = ({ product, isPublic }) => {
         ) : (
           <Link
             to={linkUrl}
-            className="mt-4 w-full text-center border border-gray-300 text-gray-600 py-2.5 rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-gray-50 transition"
+            className="mt-4 w-full text-center border border-gray-300 text-indigo-600 py-2.5 rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-gray-50 transition"
           >
             Details
           </Link>
