@@ -151,8 +151,8 @@ export default function Products() {
             {/* --- IMPROVED RESPONSIVE HEADER --- */}
             <div className="flex flex-col xl:flex-row justify-between items-stretch xl:items-center gap-6 mb-8 bg-white p-5 md:p-7 rounded-2xl shadow-sm border border-gray-100">
                 <div className="flex items-center">
-                    <h1 className="text-2xl md:text-3xl font-black text-gray-900 flex items-center gap-3">
-                        📦Product Management
+                    <h1 className="text-2xl md:text-2xl font-black text-gray-900 flex items-center gap-3">
+                        📦 Product Management
                     </h1>
                 </div>
                 
