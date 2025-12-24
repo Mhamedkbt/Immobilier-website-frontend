@@ -138,11 +138,13 @@ const ProductImageGallery = ({ images, activeImage, setActiveImage, productName 
 // =========================================================================
 export default function ProductPage() {
     const { id } = useParams();
+    const location = useLocation();
     const { addItem } = useCart();
 
     const [product, setProduct] = useState(null);
     const [allProducts, setAllProducts] = useState([]);
     const [activeImage, setActiveImage] = useState(null);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [quantity, setQuantity] = useState(1);
     const [addedToCart, setAddedToCart] = useState(false);
@@ -168,6 +170,7 @@ export default function ProductPage() {
     useEffect(() => {
         async function loadProductAndRelated() {
             try {
+                setLoading(true);
                 const response = await getProducts();
                 const processedAllProducts = response.data.map(processProductData);
                 setAllProducts(processedAllProducts);
@@ -183,7 +186,9 @@ export default function ProductPage() {
                 window.scrollTo(0, 0);
             } catch (err) {
                 console.error("Failed to load product data:", err);
-                setError("Failed to load product. Check API connection.");
+                setError("Failed to load product and related items. Check API connection.");
+            } finally {
+                setLoading(false);
             }
         }
 
@@ -202,14 +207,22 @@ export default function ProductPage() {
     }, [product, allProducts]);
 
     const handleAddToCart = () => {
-        if (!product?.isAvailable) return;
+        if (!product.isAvailable) return;
         addItem(product, quantity, () => {
             setAddedToCart(true);
             setTimeout(() => setAddedToCart(false), 2000);
         });
     };
 
-    if (error) {
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600"></div>
+            </div>
+        );
+    }
+
+    if (error || !product) {
         return (
             <div className="min-h-screen bg-gray-100 flex flex-col">
                 <Navbar />
@@ -232,178 +245,179 @@ export default function ProductPage() {
             <Navbar />
 
             <main className="flex-1 container mx-auto px-4 md:px-8 py-8 lg:py-12">
-                {product && (
-                    <>
-                        {/* Main Product Section */}
-                        <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-8">
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 p-6 md:p-8 lg:p-12">
-                                <div className="lg:order-1">
-                                    <ProductImageGallery
-                                        images={product.images}
-                                        activeImage={activeImage}
-                                        setActiveImage={setActiveImage}
-                                        productName={product.name}
-                                    />
-                                </div>
-                                <div className="lg:order-2 flex flex-col">
-                                    <div className="mb-4">
-                                        <span className="inline-block px-3 py-1 text-xs font-medium text-indigo-700 bg-indigo-100 rounded-full">
-                                            {product.category || "Uncategorized"}
-                                        </span>
-                                    </div>
-                                    <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-                                        {product.name}
-                                    </h1>
-                                    <div className="flex items-center gap-3 mb-6">
-                                        {product.onPromotion && (
-                                            <span className="text-gray-500 line-through text-lg">
-                                                {product.previousPrice} DH
-                                            </span>
-                                        )}
-                                        <span className="text-4xl font-bold text-green-700">
-                                            {product.price} DH
-                                        </span>
-                                    </div>
+                
+                {/* Main Product Section */}
+                <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 p-6 md:p-8 lg:p-12">
+                        <div className="lg:order-1">
+                            <ProductImageGallery
+                                images={product.images}
+                                activeImage={activeImage}
+                                setActiveImage={setActiveImage}
+                                productName={product.name}
+                            />
+                        </div>
+                        <div className="lg:order-2 flex flex-col">
+                            <div className="mb-4">
+                                <span className="inline-block px-3 py-1 text-xs font-medium text-indigo-700 bg-indigo-100 rounded-full">
+                                    {product.category || "Uncategorized"}
+                                </span>
+                            </div>
+                            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                                {product.name}
+                            </h1>
+                            <div className="flex items-center gap-3 mb-6">
+                                {product.onPromotion && (
+                                    <span className="text-gray-500 line-through text-lg">
+                                        {product.previousPrice} DH
+                                    </span>
+                                )}
+                                <span className="text-4xl font-bold text-green-700">
+                                    {product.price} DH
+                                </span>
+                            </div>
 
-                                    {/* Stock Status */}
-                                    <div className="mb-6">
-                                        {product.isAvailable ? (
-                                            <div className="inline-flex items-center px-4 py-2 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-full">
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                                </svg>
-                                                <span>In Stock</span>
-                                            </div>
-                                        ) : (
-                                            <div className="inline-flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-full">
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                                                </svg>
-                                                <span>Out of Stock</span>
-                                            </div>
-                                        )}
+                            {/* Stock Status */}
+                            <div className="mb-6">
+                                {product.isAvailable ? (
+                                    <div className="inline-flex items-center px-4 py-2 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-full">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                        </svg>
+                                        <span>In Stock</span>
                                     </div>
-
-                                    {/* Quantity & Add to Cart */}
-                                    <div className="mb-8">
-                                        <div className="flex items-center">
-                                            <span className="text-gray-700 font-medium mr-4">Quantity:</span>
-                                            <div className="flex items-center border border-gray-300 rounded-lg">
-                                                <button 
-                                                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                                                    className="px-3 py-2 text-gray-600 hover:bg-gray-100 transition-colors"
-                                                    disabled={!product.isAvailable}
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                                                    </svg>
-                                                </button>
-                                                <input
-                                                    type="number"
-                                                    min="1"
-                                                    value={quantity}
-                                                    onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                                                    className="w-16 text-center border-x border-gray-300 py-2 focus:outline-none"
-                                                    disabled={!product.isAvailable}
-                                                />
-                                                <button 
-                                                    onClick={() => setQuantity(quantity + 1)}
-                                                    className="px-3 py-2 text-gray-600 hover:bg-gray-100 transition-colors"
-                                                    disabled={!product.isAvailable}
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                        </div>
+                                ) : (
+                                    <div className="inline-flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-full">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                        </svg>
+                                        <span>Out of Stock</span>
                                     </div>
+                                )}
+                            </div>
 
-                                    <div className="mb-8">
-                                        <button
-                                            onClick={handleAddToCart}
+                            {/* Quantity & Add to Cart */}
+                            <div className="mb-8">
+                                <div className="flex items-center">
+                                    <span className="text-gray-700 font-medium mr-4">Quantity:</span>
+                                    <div className="flex items-center border border-gray-300 rounded-lg">
+                                        <button 
+                                            onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                                            className="px-3 py-2 text-gray-600 hover:bg-gray-100 transition-colors"
                                             disabled={!product.isAvailable}
-                                            className={`w-full py-3 px-6 rounded-lg font-medium text-white transition-all duration-200 ${
-                                                product.isAvailable
-                                                    ? "bg-indigo-600 hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-300"
-                                                    : "bg-gray-300 cursor-not-allowed"
-                                            }`}
                                         >
-                                            {product.isAvailable ? (
-                                                <>
-                                                    <i className="fa-solid fa-cart-shopping mr-2"></i>
-                                                    Add to Cart
-                                                </>
-                                            ) : (
-                                                "Out of Stock"
-                                            )}
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                                            </svg>
                                         </button>
-                                        {addedToCart && (
-                                            <div className="mt-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded-lg text-center animate-fade-in">
-                                                <i className="fa-solid fa-check-circle mr-2"></i>
-                                                Added to cart successfully!
-                                            </div>
-                                        )}
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={quantity}
+                                            onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                                            className="w-16 text-center border-x border-gray-300 py-2 focus:outline-none"
+                                            disabled={!product.isAvailable}
+                                        />
+                                        <button 
+                                            onClick={() => setQuantity(quantity + 1)}
+                                            className="px-3 py-2 text-gray-600 hover:bg-gray-100 transition-colors"
+                                            disabled={!product.isAvailable}
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                            </svg>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
-                            
-                            {/* DESCRIPTION SECTION */}
-                            <div className="p-6 md:p-8 lg:p-12 border-t border-gray-200">
-                                <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-100">
-                                    Product Details
-                                </h2>
-                                {product.description ? (
-                                    <p 
-                                        className="text-gray-700 leading-relaxed whitespace-pre-wrap"
-                                        style={{ 
-                                            unicodeBidi: 'plaintext',
-                                            textAlign: 'start'
-                                        }}
-                                        dir="auto"
-                                    >
-                                        {product.description}
-                                    </p>
-                                ) : (
-                                    <p className="text-gray-500 italic">
-                                        No detailed description is available for this product.
-                                    </p>
+
+                            <div className="mb-8">
+                                <button
+                                    onClick={handleAddToCart}
+                                    disabled={!product.isAvailable}
+                                    className={`w-full py-3 px-6 rounded-lg font-medium text-white transition-all duration-200 ${
+                                        product.isAvailable
+                                            ? "bg-indigo-600 hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-300"
+                                            : "bg-gray-300 cursor-not-allowed"
+                                    }`}
+                                >
+                                    {product.isAvailable ? (
+                                        <>
+                                            <i className="fa-solid fa-cart-shopping mr-2"></i>
+                                            Add to Cart
+                                        </>
+                                    ) : (
+                                        "Out of Stock"
+                                    )}
+                                </button>
+                                {addedToCart && (
+                                    <div className="mt-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded-lg text-center animate-fade-in">
+                                        <i className="fa-solid fa-check-circle mr-2"></i>
+                                        Added to cart successfully!
+                                    </div>
                                 )}
                             </div>
                         </div>
-
-                        {/* Related Products */}
-                        {relatedProducts.length > 0 && (
-                            <section>
-                                <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                                    You May Also Like
-                                </h2>
-
-                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
-                                    {relatedProducts.map(relatedProduct => (
-                                        <ProductCard 
-                                            key={relatedProduct.id} 
-                                            product={relatedProduct} 
-                                            isPublic={true} 
-                                        />
-                                    ))}
-                                </div>
-                                
-                                <div className="text-center mt-10">
-                                    <Link 
-                                        to={`/shop?category=${product.category.toLowerCase().replace(/\s+/g, '-')}`}
-                                        className="inline-flex items-center px-6 py-3 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors"
-                                    >
-                                        View All {product.category} Products
-                                        <svg className="ml-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                                        </svg>
-                                    </Link>
-                                </div>
-                            </section>
+                    </div>
+                    
+                    {/* 👇 START OF DESCRIPTION SECTION ADDITION 👇 */}
+                    <div className="p-6 md:p-8 lg:p-12 border-t border-gray-200">
+                        <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-100">
+                            Product Details
+                        </h2>
+                        {/* FIX APPLIED HERE: Using dir="auto" for mixed language content */}
+                        {product.description ? (
+                            <p 
+                                className="text-gray-700 leading-relaxed whitespace-pre-wrap"
+                                style={{ 
+                                    unicodeBidi: 'plaintext',
+                                    textAlign: 'start'
+                                }}
+                                dir="auto"
+                            >
+                                {product.description}
+                            </p>
+                        ) : (
+                            <p className="text-gray-500 italic">
+                                No detailed description is available for this product.
+                            </p>
                         )}
-                    </>
+                    </div>
+                    {/* 👆 END OF DESCRIPTION SECTION ADDITION 👆 */}
+
+                </div>
+
+                {/* Related Products */}
+                {relatedProducts.length > 0 && (
+                    <section>
+                        <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                            You May Also Like
+                        </h2>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+                            {relatedProducts.map(relatedProduct => (
+                                <ProductCard 
+                                    key={relatedProduct.id} 
+                                    product={relatedProduct} 
+                                    isPublic={true} 
+                                />
+                            ))}
+                        </div>
+                        
+                        <div className="text-center mt-10">
+                            <Link 
+                                to={`/shop?category=${product.category.toLowerCase().replace(/\s+/g, '-')}`}
+                                className="inline-flex items-center px-6 py-3 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors"
+                            >
+                                View All {product.category} Products
+                                <svg className="ml-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                                </svg>
+                            </Link>
+                        </div>
+                    </section>
                 )}
+                
             </main>
 
             <Footer />
