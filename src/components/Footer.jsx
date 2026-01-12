@@ -62,7 +62,7 @@ export default function Footer() {
                 <hr className="border-gray-800 my-8" />
                 
                 <div className="text-center">
-                    <p className="text-xs tracking-wider uppercase text-gray-500">&copy; {new Date().getFullYear()} ECOMM. All Rights Reserved.</p>
+                    <p className="text-xs tracking-wider uppercase text-gray-500">&copy; {new Date().getFullYear()} IMMO. All Rights Reserved.</p>
                 </div>
             </div>
         </footer>

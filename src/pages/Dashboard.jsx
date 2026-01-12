@@ -1,336 +1,306 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom"; // 👈 1. NEW: Import useNavigate
-// import axios from "axios";
+
+// Dashboard.jsx (IMMO / Products Only) — FIXED CATEGORIES COUNT
+// ✅ "Catégories" card now shows REAL categories count (from categories API), not only used-by-products
+// ✅ Keeps your UI + logic the same
+
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import Card from "../components/ProductCard";
+import ProductCard from "../components/ProductCard";
 import Products from "./dashboard/Products";
 import Categories from "./dashboard/Categories";
-import Orders from "./dashboard/Orders";
 import Settings from "./dashboard/Settings";
 import { getProducts } from "../api/productsApi";
-import API_URL from "../config/api";
-import api from "../api/axios";
+import { getCategories } from "../api/categoriesApi"; // ✅ NEW
 
-
-// 🚨 NEW COMPONENT: Logout Confirmation Modal/Card
+// 🚨 Logout Confirmation Modal/Card
 const LogoutConfirmationModal = ({ onConfirm, onCancel }) => {
-    return (
-        // Modal Overlay (Fixed position, dark background, px-4 for mobile spacing)
-        <div className="fixed inset-0 flex items-center justify-center z-50 px-4 bg-black/60 backdrop-blur-sm">
-            {/* Modal Card (text-center and max-width classes match your reference) */}
-            <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-xs md:max-w-sm text-center">
-                <h2 className="text-2xl font-bold text-gray-800 mb-3">Confirm Logout</h2>
-                
-                <p className="mb-6 text-gray-600">
-                    Are you sure you want to logout of the Admin Dashboard?
-                </p>
+  return (
+    <div className="fixed inset-0 flex items-center justify-center z-50 px-4 bg-black/60 backdrop-blur-sm">
+      <div className="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-xs md:max-w-sm text-center border border-gray-100">
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Se déconnecter ?</h2>
+        <p className="mb-6 text-gray-600">Voulez-vous vraiment quitter le dashboard admin ?</p>
 
-                {/* Button Container (flex-between with gap-3 and flex-1 buttons) */}
-                <div className="flex justify-between mt-4 gap-3">
-                    <button 
-                        onClick={onCancel} 
-                        className="px-5 py-2 rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-800 flex-1 font-semibold transition"
-                    >
-                        Cancel
-                    </button>
-                    
-                    <button 
-                        onClick={onConfirm} 
-                        className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white flex-1 font-semibold transition"
-                    >
-                        Logout
-                    </button>
-                </div>
-            </div>
+        <div className="flex justify-between mt-4 gap-3">
+          <button
+            onClick={onCancel}
+            className="px-5 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 flex-1 font-bold transition"
+          >
+            Annuler
+          </button>
+
+          <button
+            onClick={onConfirm}
+            className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white flex-1 font-bold transition"
+          >
+            Déconnexion
+          </button>
         </div>
-    );
+      </div>
+    </div>
+  );
 };
 
+// Helpers
+const asBool = (v) =>
+  !(v === false || v === 0 || String(v).toLowerCase() === "false" || v == null);
 
 export default function Dashboard() {
-    const [activePage, setActivePage] = useState("dashboard");
-    const [sidebarOpen, setSidebarOpen] = useState(false);
-    // 👈 2. NEW STATE: To control the confirmation modal visibility
-    const [showConfirmModal, setShowConfirmModal] = useState(false);
-    const [categories, setCategories] = useState([
-        { id: 1, name: "Category A" },
-        { id: 2, name: "Category B" },
-    ]);
-    const [orders, setOrders] = useState([]);
-    const [totalProducts, setTotalProducts] = useState(0);
+  const [activePage, setActivePage] = useState("dashboard");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
-    const navigate = useNavigate(); // 👈 3. NEW: Initialize useNavigate
+  // Keep categories state for your pages (still passed to Products/Categories)
+  const [categories, setCategories] = useState([
+    { id: 1, name: "Appartement" },
+    { id: 2, name: "Villa" },
+  ]);
 
-    // 4. UPDATED: This function is now called when the sidebar button is clicked. It shows the modal.
-    const handleLogout = () => {
-        setSidebarOpen(false); // Close sidebar for better mobile experience
-        setShowConfirmModal(true); // Open the confirmation modal
+  // Products
+  const [products, setProducts] = useState([]);
+  const [loadingStats, setLoadingStats] = useState(true);
+
+  // ✅ REAL categories count from backend
+  const [categoriesCount, setCategoriesCount] = useState(0);
+
+  const navigate = useNavigate();
+
+  // Logout flow
+  const handleLogout = () => {
+    setSidebarOpen(false);
+    setShowConfirmModal(true);
+  };
+
+  const confirmAndPerformLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/");
+    setShowConfirmModal(false);
+  };
+
+  const cancelLogout = () => setShowConfirmModal(false);
+
+  // ✅ Fetch products + categories (for stats + latest)
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setLoadingStats(true);
+
+        const [prodRes, catRes] = await Promise.all([getProducts(), getCategories()]);
+
+        setProducts(Array.isArray(prodRes?.data) ? prodRes.data : []);
+
+        const cats = Array.isArray(catRes?.data) ? catRes.data : [];
+        setCategoriesCount(cats.length);
+
+        // Optional: also sync sidebar/pages categories with real backend categories
+        // (keeps your UI consistent everywhere)
+        if (cats.length > 0) setCategories(cats);
+      } catch (err) {
+        console.error("Failed to fetch stats:", err);
+        setProducts([]);
+        setCategoriesCount(0);
+      } finally {
+        setLoadingStats(false);
+      }
     };
-    
-    // 5. NEW: This function is called when the user confirms the logout on the modal.
-    const confirmAndPerformLogout = () => {
-        localStorage.removeItem("token");
-        
-        // 🚨 FIX: Use navigate to redirect, replacing the old window.location.href
-        navigate("/"); 
-        
-        setShowConfirmModal(false);
-    };
 
-    // 6. NEW: Function to close the modal if the user cancels.
-    const cancelLogout = () => {
-        setShowConfirmModal(false);
-    };
-    // ----------------------------------------------------------------------
+    fetchStats();
+  }, []);
 
+  // IMMO stats (promo removed)
+  const stats = useMemo(() => {
+    const total = products.length;
 
-      useEffect(() => {
-        const fetchOrders = async () => {
-          try {
-            const res = await api.get("/orders");
-            setOrders(res.data);
-          } catch (err) {
-            console.error("Failed to fetch orders:", err);
-          }
-        };
-        fetchOrders();
-      }, []);
+    const available = products.reduce(
+      (sum, p) => (asBool(p?.isAvailable) ? sum + 1 : sum),
+      0
+    );
 
-  useEffect(() => {
-    const fetchProductsCount = async () => {
-      try {
-        const res = await getProducts();
-        setTotalProducts(res.data.length);
-      } catch (err) {
-        console.error("Failed to fetch products count:", err);
-      }
-    };
-    fetchProductsCount();
-  }, []);
+    // Kept (not used in card anymore, but harmless)
+    const uniqueCats = new Set(
+      products
+        .map((p) => (p?.category ?? p?.type ?? "").toString().trim())
+        .filter(Boolean)
+    ).size;
 
-  // Calculations for Total Sales and Sales This Month (Keeping original logic: counting 'Delivered' orders)
-  const totalSales = orders.reduce(
-    (sum, o) => (o.status === "Delivered" ? sum + 1 : sum),
-    0
-  );
-  const currentMonth = new Date().getMonth() + 1;
-  const salesThisMonth = orders.reduce((sum, o) => {
-    const orderMonth = new Date(o.date).getMonth() + 1;
-    return o.status === "Delivered" && orderMonth === currentMonth
-      ? sum + 1
-      : sum;
-  }, 0);
+    return { total, available, uniqueCats };
+  }, [products]);
 
-  const latestOrders = orders
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
-    .slice(0, 5);
+  const latestListings = useMemo(() => {
+    return [...products]
+      .sort((a, b) => {
+        const da = new Date(a?.createdAt || 0).getTime();
+        const db = new Date(b?.createdAt || 0).getTime();
+        if (db !== da) return db - da;
+        return (Number(b?.id) || 0) - (Number(a?.id) || 0);
+      })
+      .slice(0, 6);
+  }, [products]);
 
-  // New Status Color Map based on the provided design image colors
-  const statusColors = {
-    Pending: "bg-yellow-100 text-yellow-800", // Yellow dot in image
-    Confirmed: "bg-blue-100 text-blue-800", // Blue dot in image
-    Delivered: "bg-green-100 text-green-800", // Green dot in image
-    Cancelled: "bg-red-100 text-red-800", // Red text in image
-  };
+  return (
+    <div className="flex h-screen bg-gray-50">
+      <Sidebar
+        activePage={activePage}
+        setActivePage={setActivePage}
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+        handleLogout={handleLogout}
+      />
 
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <header className="bg-white shadow-md px-6 py-4 flex items-center justify-between">
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus:outline-none transition"
+          >
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <h1 className="text-xl font-bold text-gray-800">Dashboard</h1>
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-600 font-medium">Admin</span>
+            <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium shadow-md">
+              A
+            </div>
+          </div>
+        </header>
 
-  return (
-    <div className="flex h-screen bg-gray-100"> {/* Light background */}
-      {/* The Sidebar component will handle its own dark styling based on props/internal logic */}
-      <Sidebar
-        activePage={activePage}
-        setActivePage={setActivePage}
-        sidebarOpen={sidebarOpen}
-        setSidebarOpen={setSidebarOpen}
-        handleLogout={handleLogout} // 👈 UPDATED: Calls the function that shows the modal
-      />
+        {/* Main */}
+        <main className="flex-1 overflow-y-auto bg-gray-50 p-5 md:p-6">
+          {activePage === "dashboard" && (
+            <div className="space-y-8">
+              {/* Stats (3 cards) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                <StatCard
+                  title="Total annonces"
+                  value={loadingStats ? "…" : stats.total}
+                  sub="Toutes catégories"
+                  iconBg="bg-indigo-600"
+                  icon={
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10l9-7 9 7v10a2 2 0 01-2 2H5a2 2 0 01-2-2V10z" />
+                    </svg>
+                  }
+                />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header: Light background, minimalist */}
-        <header className="bg-white shadow-md px-6 py-4 flex items-center justify-between">
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus:outline-none transition"
-          >
-            {/* Hamburger icon from the original code */}
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-          <h1 className="text-xl font-bold text-gray-800">Dashboard</h1> {/* Use bold font for Header */}
-          <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-600 font-medium">Admin</span>
-            {/* Avatar: Blue background for admin initial 'A' */}
-            <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium shadow-md">
-              A
-            </div>
-          </div>
-        </header>
+                <StatCard
+                  title="Disponibles"
+                  value={loadingStats ? "…" : stats.available}
+                  sub="Annonces actives"
+                  iconBg="bg-emerald-600"
+                  icon={
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m7 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  }
+                />
 
-        {/* Main Content */}
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
-          {activePage === "dashboard" && (
-            <div className="space-y-8"> {/* Increased spacing */}
-              {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Total Products Card - Design updated to match the image: large shadow, rounded corners */}
-                <div className="bg-white rounded-xl shadow-xl p-6"> 
-                  <div className="flex items-start"> {/* Align items to start for stacked text */}
-                    {/* Icon Area: Use a blue/indigo color scheme for the icon box */}
-                    <div className="flex-shrink-0 bg-blue-500 rounded-full p-3 text-white">
-                      {/* Original SVG for products (boxes) - changed color to white */}
-                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                      </svg>
-                    </div>
-                    <div className="ml-4 w-0 flex-1">
-                      <dl className="text-right"> {/* Align text right */}
-                        <dt className="text-sm font-medium text-gray-500 truncate">Total Products</dt>
-                        {/* Larger, bolder number */}
-                        <dd className="text-3xl font-extrabold text-gray-900 mt-1">{totalProducts}</dd>
-                      </dl>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Total Sales Card (Total Delivered Orders in the new design) */}
-                <div className="bg-white rounded-xl shadow-xl p-6">
-                  <div className="flex items-start">
-                    {/* Icon Area: Use Green color scheme for sales/delivered */}
-                    <div className="flex-shrink-0 bg-green-500 rounded-full p-3 text-white">
-                      {/* Original SVG for sales/delivered (check circle) - changed color to white */}
-                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <div className="ml-4 w-0 flex-1">
-                      <dl className="text-right">
-                        <dt className="text-sm font-medium text-gray-500 truncate">Total Sales</dt>
-                        <dd className="text-3xl font-extrabold text-gray-900 mt-1">{totalSales}</dd>
-                      </dl>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Sales This Month Card (Keeping original logic: counting 'Delivered' orders this month) */}
-                <div className="bg-white rounded-xl shadow-xl p-6">
-                  <div className="flex items-start">
-                    {/* Icon Area: Use Orange/Amber color scheme for time/month */}
-                    <div className="flex-shrink-0 bg-amber-500 rounded-full p-3 text-white">
-                      {/* Original SVG for time/month (clock) - changed color to white */}
-                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <div className="ml-4 w-0 flex-1">
-                      <dl className="text-right">
-                        <dt className="text-sm font-medium text-gray-500 truncate">Sales This Month</dt>
-                        <dd className="text-3xl font-extrabold text-gray-900 mt-1">{salesThisMonth}</dd>
-                      </dl>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                {/* ✅ FIXED HERE */}
+                <StatCard
+                  title="Catégories"
+                  value={loadingStats ? "…" : categoriesCount}
+                  sub="Toutes catégories"
+                  iconBg="bg-sky-600"
+                  icon={
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                  }
+                />
+              </div>
 
-              {/* Latest Orders */}
-              <div className="bg-white shadow-xl rounded-xl">
-                <div className="px-6 py-5 sm:p-6"> {/* Increased padding */}
-                  <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-100">
-                    <h3 className="text-xl font-bold text-gray-900">Latest Orders</h3> {/* Bolder title */}
-                    <button
-                      onClick={() => setActivePage("orders")}
-                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition"
-                    >
-                      View All
-                    </button>
-                  </div>
-                  <div className="flow-root">
-                    <ul className="-my-4 divide-y divide-gray-100"> {/* Lighter divider */}
-                      {latestOrders.map((order) => (
-                        <li key={order.id} className="py-4">
-                          <div className="flex items-center justify-between space-x-4">
-                            <div className="flex-shrink-0">
-                              {/* User Icon - lighter gray ring, darker text */}
-                              <div className="h-8 w-8 rounded-full bg-gray-100 ring-1 ring-gray-200 flex items-center justify-center">
-                                <svg className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                                </svg>
-                              </div>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-base font-semibold text-gray-800 truncate"> {/* Bolder name */}
-                                {order.customerName}
-                              </p>
-                              <p className="text-xs text-gray-500 truncate mt-0.5"> {/* Smaller date text */}
-                                {order.date
-                                  ? new Date(order.date).toLocaleString("en-GB", {
-                                      day: "2-digit",
-                                      month: "2-digit",
-                                      year: "numeric",
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    })
-                                  : "No date"}
-                              </p>
-                            </div>
-                            <div>
-                              {/* Status Label: Removed padding/full width, using small colored circle */}
-                                <div>
-                              <span
-                                className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                  order.status === "Pending"
-                                    ? "bg-amber-100 text-amber-800"
-                                    : order.status === "Confirmed"
-                                    ? "bg-blue-100 text-blue-800"
-                                    : "bg-green-100 text-green-800"
-                                }`}
-                              >
-                                {order.status}
-                              </span>
-                            </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-base font-bold text-gray-900"> {/* Bolder price */}
-                                {order.products
-                                  ? order.products.reduce(
-                                      (sum, p) => sum + p.price * p.quantity,
-                                      0
-                                    ).toLocaleString()
-                                  : 0}{" "}
-                                DH
-                              </p>
-                            </div>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+              {/* Quick actions */}
+              <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-5 md:p-6">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900">Actions rapides</h2>
+                    <p className="text-sm text-gray-500 mt-1">Ajoutez ou gérez vos annonces rapidement.</p>
+                  </div>
 
-          {activePage === "products" && (
-            <Products categories={categories} setCategories={setCategories} />
-          )}
-          {activePage === "categories" && (
-            <Categories categories={categories} setCategories={setCategories} />
-          )}
-          {activePage === "orders" && (
-            <Orders orders={orders} setOrders={setOrders} />
-          )}
-          {activePage === "settings" && <Settings />}
-        </main>
-      </div>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setActivePage("products")}
+                      className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-sm"
+                    >
+                      Gérer annonces
+                    </button>
 
-      {/* 👈 7. NEW: Conditionally render the Confirmation Modal */}
-      {showConfirmModal && (
-        <LogoutConfirmationModal 
-          onConfirm={confirmAndPerformLogout}
-          onCancel={cancelLogout}
-        />
-      )}
-    </div>
-  );
+                    <button
+                      type="button"
+                      onClick={() => setActivePage("categories")}
+                      className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl font-bold text-gray-900 bg-gray-100 hover:bg-gray-200 transition"
+                    >
+                      Gérer catégories
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Latest listings */}
+              <div className="bg-white border border-gray-100 shadow-sm rounded-2xl overflow-hidden">
+                <div className="px-6 py-5 flex items-center justify-between border-b border-gray-100">
+                  <div>
+                    <h3 className="text-lg md:text-xl font-bold text-gray-900">Dernières annonces</h3>
+                    <p className="text-xs md:text-sm text-gray-500">Les plus récentes (aperçu)</p>
+                  </div>
+
+                  <button
+                    onClick={() => setActivePage("products")}
+                    className="inline-flex items-center px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-sm"
+                  >
+                    Voir tout
+                  </button>
+                </div>
+
+                <div className="p-4 md:p-6">
+                  {latestListings.length === 0 ? (
+                    <div className="p-8 text-center text-gray-500">Aucune annonce trouvée.</div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                      {latestListings.map((p) => (
+                        <ProductCard key={p.id} product={p} isPublic={false} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activePage === "products" && <Products categories={categories} setCategories={setCategories} />}
+
+          {activePage === "categories" && <Categories categories={categories} setCategories={setCategories} />}
+
+          {activePage === "settings" && <Settings />}
+        </main>
+      </div>
+
+      {showConfirmModal && (
+        <LogoutConfirmationModal onConfirm={confirmAndPerformLogout} onCancel={cancelLogout} />
+      )}
+    </div>
+  );
+}
+
+// ======================
+// UI: Stat Card (style improved)
+// ======================
+function StatCard({ title, value, sub, icon, iconBg }) {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold text-gray-500">{title}</p>
+          <p className="mt-2 text-3xl font-bold text-gray-900 leading-none">{value}</p>
+          <p className="mt-2 text-xs text-gray-500">{sub}</p>
+        </div>
+
+        <div className={`${iconBg} text-white rounded-2xl p-3 shadow-sm`}>{icon}</div>
+      </div>
+    </div>
+  );
 }
 

@@ -13,8 +13,7 @@ export default function Orders() {
     const [sortRange, setSortRange] = useState("all");
     const [updatingId, setUpdatingId] = useState(null);
     
-    // تأكد من تغيير هذا الرابط حسب رابط الـ Backend الخاص بك
-    const API_URL = "http://localhost:5000"; 
+    const API_URL = "http://localhost:8000"; 
 
     useEffect(() => {
         const fetchOrders = async () => {

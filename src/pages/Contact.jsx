@@ -2,6 +2,7 @@
 import React from 'react';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
+import WhatsAppButton from "../components/WhatsAppButton.jsx";
 
 
 
@@ -175,6 +176,7 @@ export default function Contact() {
                 </div>
             </main>
             <Footer />
+            <WhatsAppButton />
         </div>
     );
 }

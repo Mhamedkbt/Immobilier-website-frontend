@@ -3,6 +3,8 @@ import React, { useState } from "react";
 import Navbar from '../components/Navbar.jsx'; 
 import Footer from '../components/Footer.jsx';
 import API_URL from "../config/api";
+import WhatsAppButton from "../components/WhatsAppButton.jsx";
+
 
 
 // NOTE: Font Awesome (fas) icons are still used for the eye and spinner.
@@ -139,6 +141,7 @@ export default function Login() {
             </main>
 
             <Footer />
+            <WhatsAppButton />
         </div>
     );
 }

@@ -22,6 +22,7 @@ import Products from "./pages/dashboard/Products.jsx";
 import Categories from "./pages/dashboard/Categories.jsx";
 import Orders from "./pages/dashboard/Orders.jsx";
 import Settings from "./pages/dashboard/Settings.jsx";
+import WhatsAppButton from "./components/WhatsAppButton";
 
 export default function App() {
       console.log("VITE_API_URL =", import.meta.env.VITE_API_URL);
@@ -31,7 +32,7 @@ export default function App() {
       {/* 1. PUBLIC ROUTES */}
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
-      <Route path="/shop" element={<Shop />} />
+      <Route path="/properties" element={<Shop />} />
       <Route path="/about" element={<About />} />
       <Route path="/contact" element={<Contact />} />
 
@@ -44,7 +45,7 @@ export default function App() {
       {/* Confirmation route (public) */}
       <Route path="/confirmation" element={<Confirmation />} />
 
-      <Route path="/product/:id" element={<ProductPage />} />
+      <Route path="/properties/:id" element={<ProductPage />} />
 
       <Route path="/categories" element={<CategoriesPage />} />
 
@@ -87,8 +88,11 @@ export default function App() {
             </a>
           </div>
         }
+        
       />
+      
     </Routes>
+    
     
   );
 

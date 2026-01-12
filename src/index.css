@@ -21,6 +21,31 @@ html, body {
 
 
 
+/* Hide scrollbar everywhere for this class (strong) */
+.no-scrollbar {
+  overflow: auto;
+  -ms-overflow-style: none; /* IE/Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.no-scrollbar::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+}
+.no-scrollbar::-webkit-scrollbar-thumb {
+  background: transparent !important;
+}
+.no-scrollbar::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+
+/* index.css */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+}
+
+
+
 // Use these Tailwind values everywhere:
 bg: bg-slate-950 / bg-slate-900 / bg-white
 cards: rounded-2xl shadow-xl border border-slate-100

@@ -156,7 +156,7 @@ export default function Settings() {
   return (
     <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
       <div className="max-w-xl mx-auto">
-        <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 mb-6 border-b pb-4 flex items-center gap-2">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6 border-b pb-4 flex items-center gap-2">
           <i className="fas fa-cog text-indigo-600"></i> Admin Settings
         </h1>
 

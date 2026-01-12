@@ -1,268 +1,561 @@
-import React, { useState, useEffect } from "react";
+// AddProductForm.jsx (IMMO VERSION - STYLE IMPROVED)
+// ✅ Logic unchanged
+// ✅ Better “Disponibilité” select style like your old green/red select (dynamic style)
+// ✅ Softer typography (no heavy bold everywhere), cleaner spacing, pro look
+
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import API_URL from "../../config/api";
 
-
 const BACKEND_URL = API_URL;
+const DEFAULT_IMAGE = "/no-image.png";
 
-// Tailwind utility classes for better styling (FIXED: added text-gray-900 and placeholder-gray-500)
-const inputClasses = "border border-gray-300 px-4 py-3 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 shadow-sm transition w-full text-gray-900 placeholder-gray-500 bg-white";
-const selectToggleClasses = "rounded-xl py-3 px-4 border-2 font-semibold cursor-pointer transition w-full";
-const fileInputClasses = "w-full p-3 border-2 border-dashed border-indigo-300 rounded-xl bg-indigo-50 cursor-pointer font-medium text-indigo-700 hover:bg-indigo-100 transition";
+// ------------------------- UI helpers (STYLE ONLY)
+const labelClasses = "text-[12px] font-medium text-gray-600 mb-1";
+const sectionTitle = "text-[13px] font-semibold text-gray-900";
+const sectionSub = "text-xs text-gray-500";
+const inputClasses =
+  "w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-gray-900 placeholder-gray-400 shadow-sm " +
+  "focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 transition";
+const selectClasses =
+  "w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-gray-900 shadow-sm " +
+  "focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 transition cursor-pointer";
+const fileInputClasses =
+  "w-full rounded-2xl border-2 border-dashed border-indigo-300 bg-indigo-50 px-4 py-3 " +
+  "text-indigo-800 font-semibold cursor-pointer hover:bg-indigo-100 transition";
 
+// ✅ old-style colored select (Disponible / Indisponible)
+const availabilitySelect = (isAvailable) =>
+  [
+    "w-full rounded-2xl px-4 py-3 shadow-sm cursor-pointer transition border-2",
+    "focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400",
+    isAvailable
+      ? "bg-emerald-50 border-emerald-400 text-emerald-900"
+      : "bg-rose-50 border-rose-400 text-rose-900",
+  ].join(" ");
 
-
-const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
-
-const uploadToCloudinary = async (file) => {
-  const data = new FormData();
-  data.append("file", file);
-  data.append("upload_preset", UPLOAD_PRESET);
-
-  const res = await fetch(
-    `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
-    {
-      method: "POST",
-      body: data,
-    }
-  );
-
-  if (!res.ok) {
-    throw new Error("Cloudinary upload failed");
-  }
-
-  const json = await res.json();
-  return json.secure_url;
+// Hide scrollbar (cross-browser)
+const noScrollbarStyle = {
+  scrollbarWidth: "none",
+  msOverflowStyle: "none",
 };
 
+// ------------------------- data helpers (UNCHANGED)
+const toBool = (v, fallback = false) => {
+  if (v === true || v === 1 || String(v).toLowerCase() === "true") return true;
+  if (v === false || v === 0 || String(v).toLowerCase() === "false") return false;
+  return fallback;
+};
 
+const cleanNum = (v) => {
+  if (v === "" || v == null) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
 
+const normalizeImageToUrl = (img) => {
+  if (!img) return null;
 
+  if (typeof img === "string") {
+    if (img.startsWith("http")) return img;
+    const normalized = img.replace(/\\/g, "/");
+    return normalized.startsWith("/")
+      ? `${BACKEND_URL}${normalized}`
+      : `${BACKEND_URL}/${normalized}`;
+  }
+
+  if (typeof img === "object") {
+    const maybe = img.url || img.path || img.image || img.src;
+    if (!maybe) return null;
+    if (String(maybe).startsWith("http")) return String(maybe);
+    const normalized = String(maybe).replace(/\\/g, "/");
+    return normalized.startsWith("/")
+      ? `${BACKEND_URL}${normalized}`
+      : `${BACKEND_URL}/${normalized}`;
+  }
+
+  return null;
+};
+
+const uploadToImageKit = async (file) => {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("folder", "/immobilier/products");
+
+  const token = localStorage.getItem("token");
+
+  const res = await fetch(`${API_URL}/api/uploads/image`, {
+    method: "POST",
+    body: form,
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+
+  const text = await res.text();
+  let json = {};
+  try {
+    json = text ? JSON.parse(text) : {};
+  } catch {}
+
+  if (!res.ok) throw new Error(json?.message || text || "Upload failed");
+  if (!json?.url) throw new Error("Upload ok but no url returned");
+
+  return json.url;
+};
 
 export default function AddProductForm({ categories = [], product, onAdd, onClose }) {
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [name, setName] = useState("");
-    const [price, setPrice] = useState("");
-    const [previousPrice, setPreviousPrice] = useState(0);
-    const [description, setDescription] = useState("");
-    const [category, setCategory] = useState(categories[0]?.name || "");
-    const [images, setImages] = useState([]);
-    const [isAvailable, setIsAvailable] = useState(true);
-    const [onPromotion, setOnPromotion] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Sync form when editing (LOGIC FROM YOUR WORKING FILE)
-    useEffect(() => {
-        if (product) {
-            setName(product.name || "");
-            setPrice(product.price ?? "");
-            setPreviousPrice(product.previousPrice ?? 0);
-            setDescription(product.description || "");
-            setCategory(product.category || categories[0]?.name || "");
+  // IMMO fields (UNCHANGED)
+  const [name, setName] = useState("");
+  const [purpose, setPurpose] = useState("SALE");
+  const [category, setCategory] = useState(categories?.[0]?.name || "");
+  const [price, setPrice] = useState("");
+  const [onPromotion, setOnPromotion] = useState(false);
+  const [previousPrice, setPreviousPrice] = useState("");
+  const [isAvailable, setIsAvailable] = useState(true);
 
-            // **LOGIC RETAINED**: Ensure isAvailable is a boolean value
-            let isAvailableValue = true;
-            if (product.isAvailable === false || product.isAvailable === "false" || product.isAvailable === 0) {
-                isAvailableValue = false;
-            }
-            setIsAvailable(isAvailableValue);
+  const [address, setAddress] = useState("");
+  const [surfaceM2, setSurfaceM2] = useState("");
+  const [bedrooms, setBedrooms] = useState("");
+  const [bathrooms, setBathrooms] = useState("");
 
-            setOnPromotion(Boolean(product.onPromotion));
+  const [description, setDescription] = useState("");
+  const [images, setImages] = useState([]);
 
-            // **LOGIC RETAINED**: Correctly reconstruct full image URLs for display
-            const existingImgs = (product.images || []).map((img, idx) => ({
-                url: img.startsWith("http") ? img : BACKEND_URL + img,
-                file: null,
-                isExisting: true,
-                isPrimary: idx === 0,
-            }));
-            setImages(existingImgs);
-        } else {
-            // Reset for new product
-            setName("");
-            setPrice("");
-            setPreviousPrice(0);
-            setDescription("");
-            setCategory(categories[0]?.name || "");
-            setImages([]);
-            setIsAvailable(true);
-            setOnPromotion(false);
-        }
+  // cleanup blobs on unmount (UNCHANGED)
+  const imagesRef = useRef(images);
+  useEffect(() => {
+    imagesRef.current = images;
+  }, [images]);
 
-        return () => {
-            // Cleanup object URLs
-            images.forEach(img => {
-                if (img?.url?.startsWith("blob:")) {
-                    URL.revokeObjectURL(img.url);
-                }
-            });
-        };
-    }, [product, categories]);
-
-
-    const handleImageChange = (e) => {
-        const files = Array.from(e.target.files || []).slice(0, 20);
-        const newImages = files.map((file, idx) => ({
-            file,
-            url: URL.createObjectURL(file),
-            isExisting: false,
-            isPrimary: images.length === 0 && idx === 0,
-        }));
-        setImages(prev => [...prev, ...newImages]);
+  useEffect(() => {
+    return () => {
+      for (const img of imagesRef.current || []) {
+        if (img?.url?.startsWith("blob:")) URL.revokeObjectURL(img.url);
+      }
     };
+  }, []);
 
-    const removeImage = (idx) => {
-        setImages(prev => {
-            const img = prev[idx];
-            if (img?.url?.startsWith("blob:")) URL.revokeObjectURL(img.url);
-            const newImgs = prev.filter((_, i) => i !== idx);
-            if (img.isPrimary && newImgs.length > 0) newImgs[0].isPrimary = true;
-            return newImgs;
-        });
-    };
+  const hasCategories = useMemo(
+    () => Array.isArray(categories) && categories.length > 0,
+    [categories]
+  );
 
-    const setPrimaryImage = (idx) => {
-        setImages(prev => prev.map((img, i) => ({ ...img, isPrimary: i === idx })));
-    };
+  // sync when editing (UNCHANGED)
+  useEffect(() => {
+    if (product) {
+      setName(product.name || "");
+      setPurpose((product.purpose || "SALE").toString().trim().toUpperCase());
+      setCategory(product.category || categories?.[0]?.name || "");
+      setPrice(product.price ?? "");
+    //   setOnPromotion(toBool(product.onPromotion, false));
+    //   setPreviousPrice(product.previousPrice ?? "");
+      setIsAvailable(toBool(product.isAvailable, true));
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (isSubmitting) return;
-        setIsSubmitting(true);
-    
-        try {
-            // 1. Separate existing Cloudinary URLs from new local files
-            // We MAP through the 'images' state to keep the ORDER correct
-            const uploadPromises = images.map(async (img) => {
-                if (img.isExisting) {
-                    return { url: img.url, isPrimary: img.isPrimary }; 
-                }
-                // If it's a new file, upload it to Cloudinary
-                const newUrl = await uploadToCloudinary(img.file);
-                return { url: newUrl, isPrimary: img.isPrimary };
-            });
-    
-            const results = await Promise.all(uploadPromises);
-    
-            // 2. Sort so the Primary image is index 0
-            const sortedUrls = results
-                .sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0))
-                .map(item => item.url);
-    
-            // 3. Prepare the JSON Payload
-            const payload = {
-                name,
-                price: parseFloat(price),
-                previousPrice: onPromotion ? parseFloat(previousPrice) : 0,
-                category,
-                description,
-                isAvailable,
-                onPromotion,
-                images: sortedUrls // Now the first image is definitely the Primary one
-            };
-    
-            // 4. Send to Backend
-            await onAdd(payload);
-            onClose();
-            
-        } catch (err) {
-            console.error("Submission failed:", err);
-            alert("Upload failed. Check your Cloudinary Preset name or Console.");
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
+      setAddress(product.address || "");
+      setSurfaceM2(product.surfaceM2 ?? "");
+      setBedrooms(product.bedrooms ?? "");
+      setBathrooms(product.bathrooms ?? "");
+      setDescription(product.description || "");
+
+      const existingUrls = (product.images || [])
+        .map(normalizeImageToUrl)
+        .filter(Boolean);
+
+      setImages(
+        existingUrls.map((url) => ({ url, file: null, isExisting: true }))
+      );
+    } else {
+      setName("");
+      setPurpose("SALE");
+      setCategory(categories?.[0]?.name || "");
+      setPrice("");
+      setOnPromotion(false);
+      setPreviousPrice("");
+      setIsAvailable(true);
+
+      setAddress("");
+      setSurfaceM2("");
+      setBedrooms("");
+      setBathrooms("");
+      setDescription("");
+      setImages([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product, categories]);
+
+  const handleImageChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    const newItems = files.slice(0, 20).map((file) => ({
+      file,
+      url: URL.createObjectURL(file),
+      isExisting: false,
+    }));
+
+    setImages((prev) => [...prev, ...newItems]);
+    e.target.value = "";
+  };
+
+  const removeImage = (idx) => {
+    setImages((prev) => {
+      const target = prev[idx];
+      if (target?.url?.startsWith("blob:")) URL.revokeObjectURL(target.url);
+      return prev.filter((_, i) => i !== idx);
+    });
+  };
+
+  const setPrimaryImage = (idx) => {
+    setImages((prev) => {
+      if (idx <= 0) return prev;
+      const copy = [...prev];
+      const picked = copy.splice(idx, 1)[0];
+      copy.unshift(picked);
+      return copy;
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (isSubmitting) return;
+
+    if (!name.trim()) return alert("Nom: obligatoire");
+    if (!purpose) return alert("Transaction: obligatoire");
+    if (!category) return alert("Type de bien: obligatoire");
+    if (cleanNum(price) == null) return alert("Prix: obligatoire");
+
+    setIsSubmitting(true);
+
+    try {
+      const uploadedOrExisting = await Promise.all(
+        images.map(async (img) => {
+          if (img.isExisting) return img.url;
+          if (img.file) return await uploadToImageKit(img.file);
+          return null;
+        })
+      );
+
+      const finalUrls = uploadedOrExisting.filter(Boolean);
+
+      const payload = {
+        name: name.trim(),
+        category: category.trim(),
+        price: cleanNum(price),
       
-    return (
-        <div className="fixed inset-0 flex items-center justify-center z-50 px-4 bg-black/60 backdrop-blur-sm">
-            <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto flex flex-col gap-5 p-6 md:p-8 relative">
-                <button type="button" onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-red-600 text-2xl font-bold transition">✕</button>
-                <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900 border-b pb-3 mb-2">
-                    {product ? "Edit Product" : "Add New Product"}
-                </h2>
+        // ✅ always send default to avoid null
+        previousPrice: 0,
+        onPromotion: false,
+      
+        purpose: String(purpose).trim().toUpperCase(),
+        address: address?.trim() || "",
+      
+        surfaceM2: cleanNum(surfaceM2),
+        bedrooms: cleanNum(bedrooms),
+        bathrooms: cleanNum(bathrooms),
+      
+        isAvailable: Boolean(isAvailable),
+      
+        description: description || "",
+        images: finalUrls,
+      };
+      
 
-                {/* Input Fields */}
-                <input value={name} onChange={e => setName(e.target.value)} placeholder="Product Name" className={inputClasses} required />
-                <input value={price} onChange={e => setPrice(e.target.value)} placeholder="Price (DH)" type="number" step="0.01" min="0" className={inputClasses} required />
+      await onAdd(payload);
+      onClose();
+    } catch (err) {
+      console.error("Submission failed:", err);
+      alert(err?.response?.data?.message || err.message || "Upload failed");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-                {/* Availability and Promotion Toggles (Styled Selects) */}
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="flex flex-col">
-                        <label className="text-sm font-semibold text-gray-700 mb-1">Product Availability</label>
-                        <select
-                            value={isAvailable ? "true" : "false"}
-                            onChange={(e) => setIsAvailable(e.target.value === "true")}
-                            className={`${selectToggleClasses} ${isAvailable ? 'bg-green-50 border-green-500 text-green-800' : 'bg-red-50 border-red-500 text-red-800'}`}
-                            required
-                        >
-                            <option value="true">🟢 Available</option>
-                            <option value="false">🔴 Not Available</option>
-                        </select>
-                    </div>
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm">
+      <form
+        onSubmit={handleSubmit}
+        className="relative w-full max-w-3xl max-h-[92vh] overflow-y-auto bg-white rounded-3xl shadow-2xl border border-gray-100"
+      >
+        {/* Header */}
+        <div className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-gray-100 px-6 md:px-8 py-4 flex items-center justify-between">
+          <div className="min-w-0">
+            <h2 className="text-lg md:text-xl font-semibold text-gray-900 truncate">
+              {product ? "Modifier l’annonce" : "Ajouter une annonce"}
+            </h2>
+            <p className="text-xs text-gray-500 mt-1">
+              Remplis les infos puis clique <span className="font-medium">“Enregistrer”</span>.
+            </p>
+          </div>
 
-                    <div className="flex flex-col">
-                        <label className="text-sm font-semibold text-gray-700 mb-1">On Promotion?</label>
-                        <select 
-                            value={onPromotion ? "true" : "false"}
-                            onChange={e => setOnPromotion(e.target.value === "true")} 
-                            className={`${selectToggleClasses} ${onPromotion ? 'bg-yellow-50 border-yellow-500 text-yellow-800' : 'bg-gray-50 border-gray-300 text-gray-700'}`}
-                            required
-                        >
-                            <option value="false">No</option>
-                            <option value="true">Yes</option>
-                        </select>
-                    </div>
-                </div>
-
-                {onPromotion && (
-                    <input value={previousPrice} onChange={e => setPreviousPrice(e.target.value)} placeholder="Previous Price (for comparison)" type="number" step="0.01" min="0" className={`${inputClasses} line-through text-gray-500`} />
-                )}
-
-                <textarea 
-                    value={description} 
-                    onChange={e => setDescription(e.target.value)} 
-                    placeholder="Product Description" 
-                    className={`${inputClasses} resize-y min-h-[120px]`} 
-                    rows={5}
-                />
-
-                <select value={category} onChange={e => setCategory(e.target.value)} className={inputClasses} required>
-                    {categories.length === 0 ? <option value="">No categories</option> : categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                </select>
-
-                {/* Image Management Section */}
-                <div className="flex flex-col gap-3 mt-2 p-4 border border-indigo-200 rounded-xl bg-indigo-50">
-                    <label className="block font-bold text-lg text-indigo-800">🖼️ Manage Images</label>
-                    <input type="file" accept="image/*" multiple onChange={handleImageChange} className={fileInputClasses} />
-
-                    {images.length > 0 && (
-                        <>
-                            <div className="flex gap-3 mt-2 overflow-x-auto py-1">
-                                {images.map((img, idx) => (
-                                    <div key={idx} className={`relative w-24 h-24 rounded-lg overflow-hidden border-2 flex-shrink-0 cursor-pointer transition ${img.isPrimary ? 'border-indigo-600 ring-2 ring-indigo-300' : 'border-gray-300'}`} onClick={() => setPrimaryImage(idx)}>
-                                        {img.isPrimary && <span className="absolute top-0 left-0 bg-indigo-600 text-white text-xs px-1.5 py-0.5 rounded-br-lg z-10 font-bold">Primary</span>}
-                                        <img src={img.url} alt="product" className="w-full h-full object-cover" />
-                                        <button type="button" onClick={(e) => { e.stopPropagation(); removeImage(idx); }} className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-700 transition shadow-md">✕</button>
-                                    </div>
-                                ))}
-                            </div>
-                            <span className="text-gray-600 text-sm">{images.length} image{images.length > 1 ? "s" : ""} . Click an image to set it as Primary.</span>
-                        </>
-                    )}
-                </div>
-
-                <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className={`px-4 py-3 rounded-xl font-extrabold mt-4 shadow-xl transition 
-                    ${
-                        isSubmitting
-                            ? "bg-gray-400 cursor-not-allowed"
-                            : "bg-indigo-600 hover:bg-indigo-700 hover:scale-[1.01] text-white"
-                    }`}
-                >
-                    {isSubmitting ? "Creating Product..." : product ? "Save Changes" : "Create Product"}
-                </button>
-            </form>
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-10 w-10 rounded-2xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 hover:text-red-600 font-semibold transition"
+            aria-label="Close"
+          >
+            ✕
+          </button>
         </div>
-    );
-} 
+
+        <div className="px-6 md:px-8 py-6 space-y-6">
+          {/* Section: Basic */}
+          <div className="rounded-3xl border border-gray-100 bg-gray-50/40 p-4 md:p-5">
+            <div className="mb-4">
+              <div className={sectionTitle}>Informations</div>
+              <div className={sectionSub}>Titre, type, transaction, disponibilité.</div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <div className={labelClasses}>Titre / Nom</div>
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Ex: Appartement moderne à Casablanca"
+                  className={inputClasses}
+                  required
+                />
+              </div>
+
+              <div>
+                <div className={labelClasses}>Type de bien</div>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className={selectClasses}
+                  required
+                >
+                  {!hasCategories && <option value="">Aucune catégorie</option>}
+                  {hasCategories &&
+                    categories.map((c) => (
+                      <option key={c.id} value={c.name}>
+                        {c.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <div>
+                <div className={labelClasses}>Transaction</div>
+                <select
+                  value={purpose}
+                  onChange={(e) => setPurpose(e.target.value)}
+                  className={selectClasses}
+                  required
+                >
+                  <option value="SALE">Acheter</option>
+                  <option value="RENT">Louer</option>
+                </select>
+              </div>
+
+              <div>
+                <div className={labelClasses}>Disponibilité</div>
+                <select
+                  value={isAvailable ? "true" : "false"}
+                  onChange={(e) => setIsAvailable(e.target.value === "true")}
+                  className={availabilitySelect(isAvailable)} // ✅ dynamic green/red
+                >
+                  <option value="true">🟢 Disponible</option>
+                  <option value="false">🔴 Indisponible</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Section: Pricing & Location */}
+          <div className="rounded-3xl border border-gray-100 bg-white p-4 md:p-5 shadow-sm">
+            <div className="mb-4">
+              <div className={sectionTitle}>Prix & Localisation</div>
+              <div className={sectionSub}>Prix, adresse.</div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <div className={labelClasses}>Prix (DH)</div>
+                <input
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  placeholder="Ex: 850000"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className={inputClasses}
+                  required
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <div className={labelClasses}>Adresse</div>
+                <input
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Ex: Casablanca, Maarif…"
+                  className={inputClasses}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Section: Specs */}
+          <div className="rounded-3xl border border-gray-100 bg-white p-4 md:p-5 shadow-sm">
+            <div className="mb-4">
+              <div className={sectionTitle}>Caractéristiques</div>
+              <div className={sectionSub}>Surface, chambres, salles de bain.</div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <div className={labelClasses}>Surface (m²)</div>
+                <input
+                  value={surfaceM2}
+                  onChange={(e) => setSurfaceM2(e.target.value)}
+                  placeholder="Ex: 120"
+                  type="number"
+                  min="0"
+                  step="1"
+                  className={inputClasses}
+                />
+              </div>
+
+              <div>
+                <div className={labelClasses}>Chambres</div>
+                <input
+                  value={bedrooms}
+                  onChange={(e) => setBedrooms(e.target.value)}
+                  placeholder="Ex: 3"
+                  type="number"
+                  min="0"
+                  step="1"
+                  className={inputClasses}
+                />
+              </div>
+
+              <div>
+                <div className={labelClasses}>Salles de bain</div>
+                <input
+                  value={bathrooms}
+                  onChange={(e) => setBathrooms(e.target.value)}
+                  placeholder="Ex: 2"
+                  type="number"
+                  min="0"
+                  step="1"
+                  className={inputClasses}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Section: Description */}
+          <div className="rounded-3xl border border-gray-100 bg-white p-4 md:p-5 shadow-sm">
+            <div className="mb-3">
+              <div className={sectionTitle}>Description</div>
+              <div className={sectionSub}>Détails du bien.</div>
+            </div>
+
+            <div>
+              <div className={labelClasses}>Texte</div>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Décris le bien (quartier, étage, parking, etc.)"
+                className={`${inputClasses} min-h-[140px] resize-y`}
+                rows={5}
+              />
+            </div>
+          </div>
+
+          {/* Section: Images */}
+          <div className="rounded-3xl border border-indigo-200 bg-indigo-50 p-4 md:p-5">
+            <div className="mb-4">
+              <div className={sectionTitle}>Images</div>
+              <div className={sectionSub}>Clique une image pour la mettre en image principale.</div>
+            </div>
+
+            <div>
+              <div className={labelClasses}>Ajouter des images</div>
+              <input type="file" accept="image/*" multiple onChange={handleImageChange} className={fileInputClasses} />
+            </div>
+
+            {images.length > 0 && (
+              <div className="mt-4">
+                <style>{`.hide-scrollbar::-webkit-scrollbar{display:none}`}</style>
+
+                <div className="hide-scrollbar flex gap-3 overflow-x-auto overflow-y-hidden pb-2" style={noScrollbarStyle}>
+                  {images.map((img, idx) => {
+                    const isPrimary = idx === 0;
+                    return (
+                      <button
+                        type="button"
+                        key={img.url + idx}
+                        onClick={() => setPrimaryImage(idx)}
+                        className={`relative w-28 h-20 md:w-32 md:h-24 flex-shrink-0 overflow-hidden rounded-2xl border transition ${
+                          isPrimary
+                            ? "border-indigo-600 ring-2 ring-indigo-200"
+                            : "border-white/0 bg-white/40 ring-1 ring-gray-200 hover:ring-gray-300"
+                        }`}
+                        title={isPrimary ? "Image principale" : "Cliquer pour mettre en principale"}
+                      >
+                        {isPrimary && (
+                          <span className="absolute top-2 left-2 z-10 rounded-full bg-indigo-600/95 text-white text-[11px] font-semibold px-2 py-1 shadow">
+                            Principale
+                          </span>
+                        )}
+
+                        <img
+                          src={img.url || DEFAULT_IMAGE}
+                          alt="preview"
+                          className="absolute inset-0 w-full h-full object-cover"
+                          onError={(e) => (e.currentTarget.src = DEFAULT_IMAGE)}
+                        />
+
+                        <span
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            removeImage(idx);
+                          }}
+                          className="absolute top-2 right-2 z-10 h-7 w-7 rounded-full bg-white/95 text-red-600 flex items-center justify-center font-semibold shadow hover:bg-white transition"
+                          aria-label="Remove image"
+                          title="Supprimer"
+                        >
+                          ✕
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-2 text-xs text-indigo-900/70">
+                  {images.length} image{images.length > 1 ? "s" : ""} • La 1ère est l’image principale.
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="pt-1 pb-2">
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className={`w-full rounded-2xl px-4 py-3.5 font-semibold shadow-xl transition active:scale-[0.99] ${
+                isSubmitting ? "bg-gray-400 cursor-not-allowed text-white" : "bg-indigo-600 hover:bg-indigo-700 text-white"
+              }`}
+            >
+              {isSubmitting ? "Enregistrement..." : product ? "Enregistrer" : "Créer"}
+            </button>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full mt-3 rounded-2xl px-4 py-3.5 font-semibold border border-gray-200 bg-white hover:bg-gray-50 text-gray-800 transition"
+            >
+              Annuler
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+}

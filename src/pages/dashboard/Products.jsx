@@ -1,239 +1,389 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import AddProductForm from "./AddProductForm"; 
+
+
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import AddProductForm from "./AddProductForm";
 import { getProducts, addProduct, updateProduct, deleteProduct } from "../../api/productsApi";
 import { getCategories } from "../../api/categoriesApi";
-import API_URL from "../../config/api"; 
+import API_URL from "../../config/api";
 
-const parseBoolean = (value) => {
-    if (value === false || value === 0 || String(value).toLowerCase() === "false" || value === null || value === undefined) {
-        return false;
-    }
-    return true;
+const BACKEND_URL = API_URL;
+const DEFAULT_IMAGE = "/no-image.png";
+
+const parseBoolean = (value) =>
+  !(value === false || value === 0 || String(value).toLowerCase() === "false" || value == null);
+
+const getFullImageUrl = (path) => {
+  if (!path) return DEFAULT_IMAGE;
+  const s = String(path);
+  if (s.startsWith("http")) return s;
+  const normalized = s.replace(/\\/g, "/");
+  return normalized.startsWith("/")
+    ? `${BACKEND_URL}${normalized}`
+    : `${BACKEND_URL}/${normalized}`;
 };
 
-const ProductCard = ({ product, onEdit, onDelete }) => {
-    const defaultImage = "/no-image.png"; 
-    const imageUrl = product.images?.[0] || defaultImage;
-    
-    const AvailabilityBadge = product.isAvailable 
-        ? <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-800 shadow-sm">Available</span>
-        : <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-800 shadow-sm">Unavailable</span>;
+const nfmt = (n) => {
+  if (n == null || n === "") return "—";
+  const x = Number(n);
+  if (Number.isNaN(x)) return "—";
+  return new Intl.NumberFormat("fr-FR").format(x);
+};
 
-    const PromotionPill = product.onPromotion 
-        ? <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-400 text-yellow-900 shadow-sm">Promotion</span>
-        : null;
+const firstNonEmpty = (...vals) => vals.find((v) => v != null && String(v).trim() !== "");
 
-    return (
-        <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition duration-300 p-4 flex flex-col h-full overflow-hidden border border-gray-100">
-            <div className="relative mb-3">
-                <img
-                    src={imageUrl}
-                    alt={product.name}
-                    className="w-full h-40 object-cover rounded-lg border border-gray-100"
-                    onError={e => { 
-                        if (e.target.src !== defaultImage) {
-                            e.target.src = defaultImage; 
-                        }
-                    }}
-                />
-                <div className="absolute top-2 left-2">{PromotionPill}</div>
-                <div className="absolute bottom-2 right-2">{AvailabilityBadge}</div>
-            </div>
+function Badge({ children, tone = "gray" }) {
+  const tones = {
+    gray: "bg-gray-100 text-gray-700 border-gray-200",
+    green: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    red: "bg-red-50 text-red-700 border-red-200",
+    indigo: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  };
+  return (
+    <span className={`inline-flex items-center px-2.5 py-1 text-xs font-bold rounded-full border ${tones[tone]}`}>
+      {children}
+    </span>
+  );
+}
 
-            <div className="flex flex-col gap-1 flex-1">
-                <h2 className="font-extrabold text-lg text-gray-900 truncate" title={product.name}>
-                    {product.name}
-                </h2>
-                <p className="text-indigo-600 text-sm font-medium">{product.category}</p>
-                <p className="text-gray-500 text-xs overflow-hidden h-8 line-clamp-2 mt-1">{product.description}</p>
-                
-                <div className="flex items-baseline gap-2 mt-2 pt-1">
-                    {product.onPromotion && (
-                        <span className="text-gray-400 line-through font-medium text-sm">
-                            {product.previousPrice} DH
-                        </span>
-                    )}
-                    <span className="text-xl font-extrabold text-green-600">
-                        {product.price} DH
-                    </span>
-                </div>
-            </div>
+const ImmoCard = ({ product, onEdit, onDelete }) => {
+  const title = firstNonEmpty(product.title, product.name, "Annonce");
+  const category = firstNonEmpty(product.category, product.type, "Bien");
+  const city = firstNonEmpty(product.city, product.address, product.location, "");
+  const price = firstNonEmpty(product.price, product.currentPrice);
+  const surface = firstNonEmpty(product.surfaceM2, product.surface, product.area, product.size);
 
-            <div className="flex justify-between mt-4 gap-3 pt-3 border-t border-gray-100">
-                <button onClick={() => onEdit(product)} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl shadow-md transition flex-1 text-sm flex items-center justify-center font-semibold">
-                    <i className="fas fa-edit mr-1"></i> Edit
-                </button>
-                <button onClick={() => onDelete(product.id)} className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-xl shadow-md transition flex-1 text-sm flex items-center justify-center font-semibold">
-                    <i className="fas fa-trash-alt mr-1"></i> Delete
-                </button>
-            </div>
+  const mainImage =
+    product.images?.[0]?.url ||
+    product.images?.[0] ||
+    product.image?.url ||
+    product.image ||
+    DEFAULT_IMAGE;
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition overflow-hidden group">
+      {/* Image */}
+      <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
+        <img
+          src={getFullImageUrl(mainImage)}
+          alt={title}
+          className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
+          onError={(e) => (e.currentTarget.src = DEFAULT_IMAGE)}
+          loading="lazy"
+          decoding="async"
+        />
+
+        <div className="absolute top-3 left-3 flex gap-2">
+          <Badge tone="indigo">{category}</Badge>
         </div>
-    );
+
+        <div className="absolute bottom-3 right-3">
+          {product.isAvailable ? <Badge tone="green">Disponible</Badge> : <Badge tone="red">Indisponible</Badge>}
+        </div>
+
+        {/* subtle overlay */}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 via-black/0 to-black/0" />
+      </div>
+
+      {/* Body */}
+      <div className="p-4 md:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="font-bold text-gray-900 leading-snug line-clamp-2">{title}</h3>
+          <div className="text-right shrink-0">
+            <div className="text-lg font-bold text-emerald-700 leading-none">
+              {price != null ? `${nfmt(price)} DH` : "—"}
+            </div>
+            <div className="text-xs text-gray-500 mt-1">{surface != null ? `${nfmt(surface)} m²` : "—"}</div>
+          </div>
+        </div>
+
+        {city && (
+          <p className="mt-2 text-sm text-gray-600 line-clamp-1">
+            📍 <span className="font-semibold">{city}</span>
+          </p>
+        )}
+
+        {product.description && (
+          <p className="mt-2 text-xs text-gray-500 leading-relaxed line-clamp-2">{product.description}</p>
+        )}
+
+        {/* Actions */}
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <button
+            onClick={() => onEdit(product)}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-2.5 transition shadow-sm"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5h2m-1 0v14m-7-7h14" />
+            </svg>
+            Modifier
+          </button>
+
+          <button
+            onClick={() => onDelete(product.id)}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-2.5 transition shadow-sm"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m2 0H7m2 0V5a2 2 0 012-2h2a2 2 0 012 2v2" />
+            </svg>
+            Supprimer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default function Products() {
-    const [products, setProducts] = useState([]);
-    const [categories, setCategories] = useState([]);
-    const gridSectionRef = useRef(null);
-    const [modalState, setModalState] = useState({ showForm: false, editProduct: null, deleteProductId: null });
-    const [searchQuery, setSearchQuery] = useState("");
-    const [filterCategory, setFilterCategory] = useState("");
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const gridSectionRef = useRef(null);
 
-    const { showForm, editProduct, deleteProductId } = modalState;
+  const [modalState, setModalState] = useState({
+    showForm: false,
+    editProduct: null,
+    deleteProductId: null,
+  });
 
-    const processProductData = useCallback((product) => {
-        return {
-            ...product,
-            images: (product.images || []).map(img => 
-                img.startsWith("http") ? img : `${API_URL}${img.startsWith('/') ? '' : '/'}${img}`
-            ),
-            isAvailable: parseBoolean(product.isAvailable), 
-            onPromotion: parseBoolean(product.onPromotion), 
-        };
-    }, []);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterCategory, setFilterCategory] = useState("");
 
-    const fetchProducts = useCallback(async () => {
-        try {
-            const res = await getProducts();
-            setProducts(res.data.map(processProductData));
-        } catch (err) { console.error(err); }
-    }, [processProductData]);
+  const { showForm, editProduct, deleteProductId } = modalState;
 
-    const fetchCategories = async () => {
-        try {
-            const res = await getCategories();
-            setCategories(res.data);
-        } catch (err) { console.error(err); }
+  const processProductData = useCallback((p) => {
+    const normalizeImageObject = (img) => {
+      const path = img?.path || img;
+      if (!path) return null;
+      return { url: getFullImageUrl(path), blurHash: img?.blurHash || null };
     };
 
-    useEffect(() => {
-        fetchProducts();
-        fetchCategories();
-    }, [fetchProducts]);
-
-    const handleSearchAction = () => {
-        if (window.innerWidth < 1024) {
-            gridSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
+    return {
+      ...p,
+      images: (p.images || []).map(normalizeImageObject).filter(Boolean),
+      isAvailable: parseBoolean(p.isAvailable),
+      onPromotion: parseBoolean(p.onPromotion),
     };
+  }, []);
 
-    const handleOpenAddForm = () => setModalState({ showForm: true, editProduct: null, deleteProductId: null });
-    const handleOpenEditForm = (product) => setModalState({ showForm: true, editProduct: product, deleteProductId: null });
-    const handleCloseForm = () => setModalState(prev => ({ ...prev, showForm: false }));
-    const handleOpenDeleteModal = (id) => setModalState(prev => ({ ...prev, deleteProductId: id }));
-    const handleCloseDeleteModal = () => setModalState(prev => ({ ...prev, deleteProductId: null }));
+  const fetchProducts = useCallback(async () => {
+    try {
+      const res = await getProducts();
+      setProducts((res?.data || []).map(processProductData));
+    } catch (err) {
+      console.error(err);
+      setProducts([]);
+    }
+  }, [processProductData]);
 
-    const handleAddOrEdit = async (productData) => {
-        try {
-            let res = editProduct ? await updateProduct(editProduct.id, productData) : await addProduct(productData);
-            const processed = processProductData(res.data);
-            setProducts(prev => editProduct ? prev.map(p => p.id === processed.id ? processed : p) : [processed, ...prev]);
-            handleCloseForm();
-        } catch (err) { alert(`Error: ${err.response?.data?.message || err.message}`); }
-    };
+  const fetchCategories = useCallback(async () => {
+    try {
+      const res = await getCategories();
+      setCategories(res?.data || []);
+    } catch (err) {
+      console.error(err);
+      setCategories([]);
+    }
+  }, []);
 
-    const handleDeleteProduct = async () => {
-        try {
-            await deleteProduct(deleteProductId);
-            setProducts(products.filter(p => p.id !== deleteProductId));
-            handleCloseDeleteModal();
-        } catch (err) { alert("Failed to delete."); }
-    };
+  useEffect(() => {
+    fetchProducts();
+    fetchCategories();
+  }, [fetchProducts, fetchCategories]);
 
-    const filteredProducts = products.filter(p => {
-        const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.description?.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesCategory = filterCategory ? p.category === filterCategory : true;
-        return matchesSearch && matchesCategory;
+  const handleSearchAction = () => {
+    if (window.innerWidth < 1024) {
+      gridSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
+  const handleOpenAddForm = () => setModalState({ showForm: true, editProduct: null, deleteProductId: null });
+  const handleOpenEditForm = (product) => setModalState({ showForm: true, editProduct: product, deleteProductId: null });
+  const handleCloseForm = () => setModalState((prev) => ({ ...prev, showForm: false }));
+
+  const handleOpenDeleteModal = (id) => setModalState((prev) => ({ ...prev, deleteProductId: id }));
+  const handleCloseDeleteModal = () => setModalState((prev) => ({ ...prev, deleteProductId: null }));
+
+  const handleAddOrEdit = async (productData) => {
+    try {
+      const res = editProduct
+        ? await updateProduct(editProduct.id, productData)
+        : await addProduct(productData);
+
+      const processed = processProductData(res.data);
+
+      setProducts((prev) =>
+        editProduct
+          ? prev.map((p) => (p.id === processed.id ? processed : p))
+          : [processed, ...prev]
+      );
+
+      handleCloseForm();
+    } catch (err) {
+      alert(`Error: ${err.response?.data?.message || err.message}`);
+    }
+  };
+
+  const handleDeleteProduct = async () => {
+    try {
+      await deleteProduct(deleteProductId);
+      setProducts((prev) => prev.filter((p) => p.id !== deleteProductId));
+      handleCloseDeleteModal();
+    } catch (err) {
+      alert("Failed to delete.");
+    }
+  };
+
+  const filteredProducts = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return products.filter((p) => {
+      const title = String(p.title || p.name || "").toLowerCase();
+      const desc = String(p.description || "").toLowerCase();
+      const addr = String(p.address || p.city || p.location || "").toLowerCase();
+
+      const matchesSearch = !q || title.includes(q) || desc.includes(q) || addr.includes(q);
+      const matchesCategory = filterCategory ? String(p.category || p.type || "") === filterCategory : true;
+
+      return matchesSearch && matchesCategory;
     });
+  }, [products, searchQuery, filterCategory]);
 
-    return (
-        <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
-            {/* --- IMPROVED RESPONSIVE HEADER --- */}
-            <div className="flex flex-col xl:flex-row justify-between items-stretch xl:items-center gap-6 mb-8 bg-white p-5 md:p-7 rounded-2xl shadow-sm border border-gray-100">
-                <div className="flex items-center">
-                    <h1 className="text-2xl md:text-2xl font-black text-gray-900 flex items-center gap-3">
-                        📦 Product Management
-                    </h1>
-                </div>
-                
-                <div className="flex flex-col sm:flex-row flex-wrap xl:flex-nowrap gap-4 items-center">
-                    {/* Search Bar Container */}
-                    <div className="relative w-full sm:flex-1 md:w-64">
-                        <input
-                            type="search"
-                            placeholder="Search products..."
-                            value={searchQuery}
-                            onChange={e => setSearchQuery(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSearchAction()}
-                            className="w-full h-[46px] border-2 border-gray-100 px-4 pr-10 rounded-xl focus:ring-4 focus:ring-indigo-50 focus:border-indigo-400 transition text-gray-900 placeholder-gray-500 bg-white"
-                        />
-                        <div onClick={handleSearchAction} className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer text-gray-400 hover:text-indigo-600">
-                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                        </div>
-                    </div>
-                    
-                    {/* Category Filter */}
-                    <select
-                        value={filterCategory}
-                        onChange={e => setFilterCategory(e.target.value)}
-                        className="h-[46px] border-2 border-gray-100 px-4 rounded-xl focus:ring-4 focus:ring-indigo-50 focus:border-indigo-400 w-full sm:w-48 bg-gray-50/50 font-medium text-gray-700"
-                    >
-                        <option value="">All Categories</option>
-                        {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                    </select>
-                    
-                    {/* Add Button */}
-                    <button
-                        onClick={handleOpenAddForm}
-                        className="h-[46px] bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 rounded-xl shadow-lg shadow-indigo-200 transition active:scale-95 w-full sm:w-auto flex items-center justify-center whitespace-nowrap"
-                    >
-                        <i className="fas fa-plus mr-2"></i> Add Product
-                    </button>
-                </div>
-            </div>
-    
-            {/* Grid Section */}
-            <div ref={gridSectionRef} className="bg-white p-4 md:p-8 rounded-2xl shadow-sm border border-gray-100 min-h-[400px]">
-                <div className="flex justify-between items-center mb-6 border-b pb-4">
-                    <h2 className="text-xl font-bold text-gray-800">
-                        Existing Catalog <span className="ml-2 text-sm font-normal text-gray-400">({filteredProducts.length} items)</span>
-                    </h2>
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {filteredProducts.map(product => (
-                        <ProductCard key={product.id} product={product} onEdit={handleOpenEditForm} onDelete={handleOpenDeleteModal} />
-                    ))}
-                </div>
-
-                {filteredProducts.length === 0 && (
-                    <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-                        <i className="fas fa-search fa-3x mb-4 opacity-20"></i>
-                        <p className="text-lg font-medium">No products found</p>
-                    </div>
-                )}
-            </div>
-            
-            {/* Delete Modal */}
-            {deleteProductId && (
-                <div className="fixed inset-0 flex items-center justify-center z-[100] p-4 bg-gray-900/60 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center transform animate-scale-up">
-                        <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
-                            <i className="fas fa-exclamation-triangle"></i>
-                        </div>
-                        <h2 className="text-2xl font-bold text-gray-900 mb-2">Are you sure?</h2>
-                        <p className="text-gray-500 mb-8">This action cannot be undone. The product will be permanently removed.</p>
-                        <div className="flex gap-3">
-                            <button onClick={handleCloseDeleteModal} className="flex-1 px-4 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold transition">Cancel</button>
-                            <button onClick={handleDeleteProduct} className="flex-1 px-4 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold transition shadow-lg shadow-red-200">Delete</button>
-                        </div>
-                    </div>
-                </div>
-            )}
-    
-            {showForm && (
-                <AddProductForm categories={categories} product={editProduct} onAdd={handleAddOrEdit} onClose={handleCloseForm} />
-            )}
+  return (
+    <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
+      {/* HEADER */}
+      <div className="flex flex-col xl:flex-row justify-between items-stretch xl:items-center gap-5 mb-8 bg-white p-5 md:p-7 rounded-2xl shadow-sm border border-gray-100">
+        <div>
+          <h1 className="text-2xl md:text-2xl font-bold text-gray-900">Gestion des annonces</h1>
+          <p className="text-sm text-gray-500 mt-1">Créez, modifiez et supprimez vos annonces immobilières.</p>
         </div>
-    );
+
+        <div className="flex flex-col sm:flex-row flex-wrap xl:flex-nowrap gap-3 items-stretch sm:items-center">
+          {/* Search */}
+          <div className="relative w-full sm:flex-1 md:w-72">
+            <input
+              type="search"
+              placeholder="Recherche (titre, ville, description)..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearchAction()}
+              className="w-full h-[46px] border border-gray-200 px-4 pr-10 rounded-xl focus:ring-4 focus:ring-indigo-50 focus:border-indigo-400 transition text-gray-900 placeholder-gray-500 bg-white"
+            />
+            <button
+              type="button"
+              onClick={handleSearchAction}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-indigo-600"
+              aria-label="Search"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Category */}
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="h-[46px] border border-gray-200 px-4 rounded-xl focus:ring-4 focus:ring-indigo-50 focus:border-indigo-400 w-full sm:w-56 bg-white font-semibold text-gray-700"
+          >
+            <option value="">Toutes les catégories</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.name}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+
+          {/* Add */}
+          <button
+            onClick={handleOpenAddForm}
+            className="h-[46px] bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 rounded-xl shadow-sm transition active:scale-95 w-full sm:w-auto flex items-center justify-center whitespace-nowrap"
+          >
+            + Ajouter une annonce
+          </button>
+        </div>
+      </div>
+
+      {/* GRID */}
+      <div ref={gridSectionRef} className="bg-white p-4 md:p-7 rounded-2xl shadow-sm border border-gray-100 min-h-[400px]">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6 border-b border-gray-100 pb-4">
+          <h2 className="text-lg md:text-xl font-bold text-gray-900">
+            Annonces <span className="ml-2 text-sm font-semibold text-gray-400">({filteredProducts.length})</span>
+          </h2>
+
+          <button
+            type="button"
+            onClick={fetchProducts}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold px-4 py-2.5 transition w-full sm:w-auto"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v6h6M20 20v-6h-6M20 8a8 8 0 00-14.5-3.5M4 16a8 8 0 0014.5 3.5" />
+            </svg>
+            Actualiser
+          </button>
+        </div>
+
+        {/* ✅ Mobile: 1 / Desktop: 3 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredProducts.map((product) => (
+            <ImmoCard
+              key={product.id}
+              product={product}
+              onEdit={handleOpenEditForm}
+              onDelete={handleOpenDeleteModal}
+            />
+          ))}
+        </div>
+
+        {filteredProducts.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+            <svg className="h-12 w-12 mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <p className="text-lg font-semibold">Aucune annonce trouvée</p>
+            <p className="text-sm text-gray-400 mt-1">Essayez de modifier la recherche ou le filtre.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Delete Modal */}
+      {deleteProductId && (
+        <div className="fixed inset-0 flex items-center justify-center z-[100] p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white p-7 rounded-2xl shadow-2xl w-full max-w-sm text-center border border-gray-100">
+            <div className="w-14 h-14 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v4m0 4h.01M10 3h4l1 2h4v2H5V5h4l1-2z" />
+              </svg>
+            </div>
+
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Supprimer l’annonce ?</h2>
+            <p className="text-gray-500 mb-6">Cette action est définitive.</p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleCloseDeleteModal}
+                className="flex-1 px-4 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold transition"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleDeleteProduct}
+                className="flex-1 px-4 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold transition shadow-sm"
+              >
+                Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add/Edit Modal */}
+      {showForm && (
+        <AddProductForm
+          categories={categories}
+          product={editProduct}
+          onAdd={handleAddOrEdit}
+          onClose={handleCloseForm}
+        />
+      )}
+    </div>
+  );
 }
