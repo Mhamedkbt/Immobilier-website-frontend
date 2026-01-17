@@ -398,7 +398,7 @@ export default function ProductListing() {
                           onChange={(e) => setSurfaceMin(e.target.value)}
                           inputMode="numeric"
                           placeholder="Min"
-                          className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-sm font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          className="w-full border border-gray-200 placeholder-gray-400 rounded-2xl px-4 py-3 text-sm font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         />
                         <input
                           value={surfaceMax}
