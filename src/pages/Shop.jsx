@@ -213,15 +213,17 @@ export default function ProductListing() {
     <button
       type="button"
       onClick={onClick}
-      className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-semibold transition border ${
-        active
+      className={`whitespace-nowrap rounded-full font-semibold transition border
+        px-3 py-1 text-xs
+        sm:px-4 sm:py-2 sm:text-sm
+        ${active
           ? "bg-indigo-600 text-white border-indigo-600 shadow"
           : "bg-white text-gray-700 border-gray-200 hover:border-gray-300"
-      }`}
+        }`}
     >
       {children}
     </button>
-  );
+  );  
 
   if (loading) {
     return (
@@ -321,16 +323,19 @@ export default function ProductListing() {
               </div>
 
               {/* Quick chips (mobile-first, like Sarouty) */}
-              <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-1">
+              <div className=" no-scrollbar mt-4 flex items-center gap-2 overflow-x-auto pb-1">
               <Chip active={purpose === "ALL"} onClick={() => setPurpose("ALL")}>Tous</Chip>
                 <Chip active={purpose === "SALE"} onClick={() => setPurpose("SALE")}>Acheter</Chip>
                 <Chip active={purpose === "RENT"} onClick={() => setPurpose("RENT")}>Louer</Chip>
 
                 <button
-                  type="button"
-                  onClick={() => setMobileFiltersOpen((s) => !s)}
-                  className="ml-auto inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 bg-white text-sm font-bold text-gray-800 hover:bg-gray-50"
-                >
+  type="button"
+  onClick={() => setMobileFiltersOpen((s) => !s)}
+  className="ml-auto inline-flex items-center rounded-full border border-gray-200 bg-white
+             px-3 py-1 text-xs font-bold text-gray-800 hover:bg-gray-50 gap-1.5
+             sm:px-4 sm:py-2 sm:text-sm sm:gap-2"
+>
+
                   <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M4 6h16M7 12h10M10 18h4" strokeLinecap="round" />
                   </svg>
@@ -514,14 +519,14 @@ export default function ProductListing() {
                       onChange={(e) => setSurfaceMin(e.target.value)}
                       inputMode="numeric"
                       placeholder="Min"
-                      className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-sm font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full border text-gray-900 border-gray-200 rounded-2xl px-4 py-3 text-sm font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                     <input
                       value={surfaceMax}
                       onChange={(e) => setSurfaceMax(e.target.value)}
                       inputMode="numeric"
                       placeholder="Max"
-                      className="w-full border border-gray-200 rounded-2xl px-4 py-3 text-sm font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full border text-gray-900 border-gray-200 rounded-2xl px-4 py-3 text-sm font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
                 </div>
