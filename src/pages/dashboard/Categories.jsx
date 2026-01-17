@@ -318,7 +318,7 @@ export default function Categories({ refreshKey }) {
                 />
                 <div className="text-sm text-gray-600">
                   <div className="font-bold text-gray-900">{categoryInput || "New Category"}</div>
-                  <div className="text-xs text-gray-500">Image will be uploaded to ImageKit.</div>
+                  <div className="text-xs text-gray-500">Image will be uploaded.</div>
                 </div>
               </div>
             </div>
